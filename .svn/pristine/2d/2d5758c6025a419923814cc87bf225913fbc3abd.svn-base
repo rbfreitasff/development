@@ -1,0 +1,119 @@
+Attribute VB_Name = "modNFs"
+Option Explicit
+
+' Variávies Públicas já definidas
+Public sEmpresaNF As String
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Public I_ModeloNF As String                     ' Modelo da NF 55-NF-e / 65-NFC-e
+Public I_EmpresaNFe As String
+Public I_EmpresaMunicipio As String             ' Codigo do municipio do Emitente
+Public I_EmpresaUF As String                    ' Codigo da UF do Emitente
+Public I_Empresa_CNPJ_CPF As String             ' CNPJ do Emitente
+
+Public I_idEmpresa As String
+Public I_idEmpresaUF As String
+Public I_idEmpresaMunicipio As String
+Public I_UnidadeNFe As String                   ' Em que disco vai buscar a pasta
+Public I_CaminhoXML_NFCe As String              ' Em qual pasta estão os XMLs
+Public I_CaminhoXML_NFe As String
+Public I_HorarioVerao As String
+Public sCPFDestinatario As String
+
+Public sChaveNFe As String
+Public I_NFCeNumero As String
+
+Public dValorTributos As Double
+Public dValorTotalBC As Double
+Public dValorTotalICMS As Double
+Public dValorTotalBaseISS As Double
+Public dValorTotalISS As Double
+Public dValorTotalBCST As Double
+Public dValorTotalICMSST As Double
+Public dValorTotalProdutos As Double
+Public dValorTotalFrete As Double
+Public dValorTotalSeguro As Double
+Public dValorTotalDesconto As Double
+Public dValorTotalII As Double
+Public dValorTotalIPI As Double
+Public dValorTotalPIS As Double
+Public dValorTotalCofins As Double
+Public dValorTotalOutro As Double
+Public dValorTotalNFCe As Double
+Public sICMSAproveitamento As String
+Public sValorTotalNFCe As String
+Public sValorTotalICMSNFCe As String
+Public sDataEmissao As String
+
+Public I_FormatoQuantidade As String   ' Quantidade de Casas Decimais para Quantidade
+Public I_FormatoValor As String        ' Quantidade de Casas Decimais para Valores
+
+' Criar RecordSets Público para transportar os dados para todos os módulos do Sistema
+'------------------------------------------------------------------------------------
+Public rsNFs As New ADODB.Recordset
+Public rsNFsItens As New ADODB.Recordset
+Public rsNFsPagamentos As New ADODB.Recordset
+Public rsNFsTotaisICMS As New ADODB.Recordset
+Public rsNFsTotaisISS As New ADODB.Recordset
+Public rsNFsEmitentes As New ADODB.Recordset
+Public rsNFsDestinatarios As New ADODB.Recordset
+Public rsNFsDados As New ADODB.Recordset
+
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Public ARQUIVO_NFE_NOTAS As String
+
+Public CAMINHO_NFE_ENVIO As String
+Public CAMINHO_NFE_VALIDAR As String
+Public CAMINHO_NFE_VALIDADO As String
+Public CAMINHO_NFE_RETORNO As String
+Public CAMINHO_NFE_ERROS As String
+Public CAMINHO_NFE_TEMP As String
+
+Public sCaminhoOrigemNF As String
+Public sCaminhoDestinoNF As String
+Public sArquivoOrigemNF As String
+Public sArquivoDestinoNF As String
+
+''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub ConfigurarNFs()
+'On Error GoTo Erro
+Dim rsSistema As New ADODB.Recordset
+Dim rsEmpresa As New ADODB.Recordset
+Dim rsUFs As New ADODB.Recordset
+Dim rsMunicipios As New ADODB.Recordset
+Dim rsVerificar As New ADODB.Recordset
+
+   ' Configurar Informações gerais da nota
+   I_EmpresaNFe = LerArquivoINI("NFe", "Empresa", CaminhoINI & "\System.ini")
+   I_UnidadeNFe = LerArquivoINI("Arquivos", "UnidadeNFe", CaminhoINI & "\System.ini")
+   I_CaminhoXML_NFCe = LerArquivoINI("Arquivos", "CaminhoXMLNFCe", CaminhoINI & "\System.ini")
+   I_HorarioVerao = LerArquivoINI("NFe", "HorarioVerao", CaminhoINI & "\System.ini")
+
+   ' Caminhos de Notas
+   ARQUIVO_NFE_NOTAS = I_UnidadeNFe & "\NF-e\Notas\Notas.TXT"
+
+   CAMINHO_NFE_ENVIO = I_UnidadeNFe & "\NF-e\" & I_EmpresaNFe & "\ENVIO\"
+   CAMINHO_NFE_VALIDAR = I_UnidadeNFe & "\NF-e\" & I_EmpresaNFe & "\VALIDAR\"
+   CAMINHO_NFE_VALIDADO = I_UnidadeNFe & "\NF-e\" & I_EmpresaNFe & "\VALIDAR\VALIDADO\"
+   CAMINHO_NFE_RETORNO = I_UnidadeNFe & "\NF-e\" & I_EmpresaNFe & "\RETORNO\"
+   CAMINHO_NFE_ERROS = I_UnidadeNFe & "\NF-e\" & I_EmpresaNFe & "\ERROS\"
+   CAMINHO_NFE_TEMP = I_UnidadeNFe & "\NF-e\" & I_EmpresaNFe & "\TEMP\"
+
+   ' Determina variáveis publica da empresa
+   Set rsEmpresa = cnSistema.Execute("Select * From Empresa")
+   If Not rsEmpresa.EOF Then
+      Set rsUFs = cnSistema.Execute("Select * From UFs WHERE idUF=" & rsEmpresa!idUF)
+      Set rsMunicipios = cnSistema.Execute("Select * From Municipios WHERE idMunicipio=" & rsEmpresa!idMunicipio)
+      
+      I_idEmpresa = rsEmpresa!idEmpresa
+      I_EmpresaUF = rsUFs!Codigo
+      I_EmpresaMunicipio = RemoveCaracteres(rsMunicipios!Codigo)
+      I_Empresa_CNPJ_CPF = rsEmpresa!CNPJ_CPF
+   End If
+   
+   Set rsEmpresa = Nothing
+   Set rsUFs = Nothing
+   Set rsMunicipios = Nothing
+End Sub

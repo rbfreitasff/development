@@ -1,0 +1,10 @@
+[Banco de Dados]
+Caminho=D:\Projetos\Comercial\DadosModelo\Essencial
+Sintegra=D:\Projetos\Comercial\DadosModelo\Essencial
+Servidor SQL=.
+Catalog=Gestao
+SGBD=SQLSERVER
+
+[NFe]
+Empresa=COMAQ
+Modelo=55

@@ -1,0 +1,58 @@
+Attribute VB_Name = "modNFs"
+Option Explicit
+
+Public I_EmpresaNFe As String
+Public I_idEmpresa As String
+Public I_idEmpresaUF As String
+Public I_idEmpresaMunicipio As String
+Public I_Empresa_CNPJ_CPF As String
+Public I_UnidadeNFe As String
+Public I_CaminhoXML_NFCe As String
+Public I_HorarioVerao As String
+Public sCPFDestinatario As String
+
+Public sChaveNFe As String
+Public I_NFCeNumero As String
+
+Public dValorTributos As Double
+Public dValorTotalBC As Double
+Public dValorTotalICMS As Double
+Public dValorTotalBaseISS As Double
+Public dValorTotalISS As Double
+Public dValorTotalBCST As Double
+Public dValorTotalICMSST As Double
+Public dValorTotalProdutos As Double
+Public dValorTotalFrete As Double
+Public dValorTotalSeguro As Double
+Public dValorTotalDesconto As Double
+Public dValorTotalII As Double
+Public dValorTotalIPI As Double
+Public dValorTotalPIS As Double
+Public dValorTotalCofins As Double
+Public dValorTotalOutro As Double
+Public dValorTotalNFCe As Double
+Public sICMSAproveitamento As String
+Public sValorTotalNFCe As String
+Public sValorTotalICMSNFCe As String
+Public sDataEmissao As String
+
+Public I_FormatoQuantidade As String   ' Quantidade de Casas Decimais para Quantidade
+Public I_FormatoValor As String        ' Quantidade de Casas Decimais para Valores
+
+Public rsEmpresa As New ADODB.Recordset
+Public rsNFs As New ADODB.Recordset
+Public rsNFsItens As New ADODB.Recordset
+Public rsNFsPagamentos As New ADODB.Recordset
+Public rsNFsTotaisICMS As New ADODB.Recordset
+Public rsNFsTotaisISS As New ADODB.Recordset
+Public rsNFsEmitentes As New ADODB.Recordset
+Public rsNFsDestinatarios As New ADODB.Recordset
+Public rsNFsDados As New ADODB.Recordset
+
+Sub ConfigurarNFs()
+On Error GoTo Erro
+Dim rsSistema As New ADODB.Recordset
+Dim rsVerificar As New ADODB.Recordset
+
+End Sub
+

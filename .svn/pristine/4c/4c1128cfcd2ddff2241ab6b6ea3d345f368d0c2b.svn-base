@@ -1,0 +1,1611 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+  Persistable = 0  'NotPersistable
+  DataBindingBehavior = 0  'vbNone
+  DataSourceBehavior  = 0  'vbNone
+  MTSTransactionMode  = 0  'NotAnMTSObject
+END
+Attribute VB_Name = "CNF400"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = True
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = False
+'------------------------------------------------------------------------------------------------------'
+' Classe NFC-e Versão 4.00
+' Autor: Robinson
+' Data da Criação: 20/06/2018
+'------------------------------------------------------------------------------------------------------'
+
+Option Explicit
+
+Public Function FCartaCorrecao(ByVal iNumero As Long, ByVal sMotivo As String) As String
+On Error GoTo Erro
+Dim rsNF As New ADODB.Recordset
+Dim rsEmpresa As New ADODB.Recordset
+Dim rsUFs As New ADODB.Recordset
+Dim sHora As String
+
+   sHora = Format(Time - TimeValue("00:10"), "hh:mm")
+
+   Set rsNF = cnSistema.Execute("Select * From " & I_TabelasNF & " WHERE Numero=" & iNumero)
+   If Not rsNF.EOF Then
+      Set rsEmpresa = cnSistema.Execute("SELECT * FROM Empresa")
+      Set rsUFs = cnSistema.Execute("Select * From " & I_TabelaUFs & " WHERE idUF=" & rsEmpresa!idUF)
+
+      Open I_UnidadeNFe & I_PastaUNINFe & "Notas\Notas.TXT" For Output As #1
+      
+      Print #1, FTAGPrincipal("Versao")
+      Print #1, FTAGPrincipal("EnvioEvento")
+      Print #1, FTAG("idLote", "1")
+      Print #1, FTAGPrincipal("Evento")
+      Print #1, "<infEvento Id=" & Chr(34) & "ID110110" & rsNFs!cnf & "01" & Chr(34) & ">"
+      Print #1, FTAG("cOrgao", I_EmpresaCodigoUF)
+      Print #1, FTAG("tpAmb", I_AmbienteNF)                                                             ' 1 - Produção ou 2 - Homologação
+      Print #1, FTAG("CNPJ", I_Empresa_CNPJ_CPF)
+      Print #1, FTAG("chNFe", rsNFs!cnf)
+'      Print #1, FTAG("dhEvento", FData("P", Date, Time))
+      Print #1, FTAG("dhEvento", FData("P", Date, sHora))
+      Print #1, FTAG("tpEvento", "110110")
+      Print #1, FTAG("nSeqEvento", "1")
+      Print #1, FTAG("verEvento", "1.00")
+      Print #1, "<detEvento versao=" & Chr(34) & "1.00" & Chr(34) & ">"
+      Print #1, FTAG("descEvento", "Carta de Correcao")
+''         Print #1, "<nProt>" & rsNFCe!Protocolo & "</nProt>"
+      Print #1, FTAG("xCorrecao", sMotivo)
+      Print #1, FTAG("xCondUso", "A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.")
+      Print #1, "</detEvento>"
+      Print #1, "</infEvento>"
+      Print #1, "</evento>"
+      Print #1, "</envEvento>"
+      Close #1
+
+      Call FArquivosNF("CARTACORRECAO")
+   End If
+
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FCartaCorrecao")
+End Function
+
+Public Function FInutilizarNumero(ByVal iNumero As Long, ByVal sJustificativa As String) As String
+On Error GoTo Erro
+Dim rsVerificar As New ADODB.Recordset
+Dim rsUFs As New ADODB.Recordset
+'Dim sEmpresaNFCe As String
+
+   Set rsVerificar = cnSistema.Execute("SELECT * FROM NFeInutilizadas WHERE Numero = " & iNumero)
+   If rsVerificar.EOF Then
+      Set rsUFs = cnSistema.Execute("SELECT * FROM " & I_TabelaUFs & " WHERE idUF = " & I_idEmpresaUF)
+
+'''''      Open I_UnidadeNFe & "NF-e\Notas\Notas.TXT" For Output As #1
+'''''
+'''''      Print #1, "tpAmb|" & LerArquivoINI("NFe", "Ambiente", CaminhoINI & "\System.ini") ' 1 - Produção ou 2 - Homologação
+'''''      Print #1, "versao|4.00"
+'''''      Print #1, "cUF|" & rsUFs!Codigo
+'''''      Print #1, "ano|" & Format(Date, "yy")
+'''''      Print #1, "CNPJ|" & RemoveCaracteres(I_Empresa_CNPJ_CPF)
+'''''      Print #1, "mod|55"
+'''''      Print #1, "serie|1"
+'''''      Print #1, "nNFIni|" & Trim(iNumero)
+'''''      Print #1, "nNFFin|" & Trim(iNumero)
+'''''      Print #1, "xJust|" & sJustificativa
+      
+' Exemplo
+' ID41107647234900043055001000000101000000101
+' ID = ID
+' ESTADO = 41
+' ANO = 10
+' CNPJ = 76472349000430
+' MODELO = 55
+' SERIE = 001
+' NUMERO INICIAL = 000000101
+' NUMERO FINAL = 000000101
+
+
+      
+      Open I_UnidadeNFe & I_PastaUNINFe & "Notas\Notas.TXT" For Output As #1
+
+      Print #1, FTAGPrincipal("Versao")
+      Print #1, "<consSitNFe xmlns=" & Chr(34) & "http://www.portalfiscal.inf.br/nfe" & Chr(34) & " versao=" & Chr(34) & "4.00" & Chr(34) & ">"
+      Print #1, Space(2) & "<infInut Id=ID" & I_EmpresaCodigoUF & Format(Date, "yy") & I_Empresa_CNPJ_CPF & I_ModeloNF & "001" & StrZero(rsNFs!cnf, 9) & StrZero(rsNFs!cnf, 9) & ">"
+      Print #1, Space(4) & FTAG("tpAmb", I_AmbienteNF)                                                  ' 1 - Produção ou 2 - Homologação
+      Print #1, Space(4) & FTAG("xServ", "INUTILIZAR")
+      Print #1, Space(4) & FTAG("cUF", I_EmpresaCodigoUF)
+      Print #1, Space(4) & FTAG("ano", Format(Date, "yy"))
+      Print #1, Space(4) & FTAG("CNPJ", I_Empresa_CNPJ_CPF)
+      Print #1, Space(4) & FTAG("mod", I_ModeloNF)
+      Print #1, Space(4) & FTAG("serie", "1")
+      Print #1, Space(4) & FTAG("nNFIni", rsNFs!cnf)
+      Print #1, Space(4) & FTAG("nNFFin", rsNFs!cnf)
+      Print #1, Space(4) & FTAG("xJust", sJustificativa)
+      Print #1, Space(2) & "</infInut>"
+      Print #1, "</inutNFe>"
+      Close #1
+
+      Call FArquivosNF("INUTILIZARNUMERO")
+
+      cnSistema.Execute "Insert Into NFeInutilizadas (ChaveNFe,Numero,Data,Protocolo) " & _
+                        "Values ('','" & iNumero & "','" & Date & "','')"
+                        
+      FInutilizarNumero = "Número enviado para ser inutilizado"
+   Else
+      FInutilizarNumero = "Número já Inutilizado"
+   End If
+
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FInutilizarNumero")
+End Function
+
+Public Function FConsultarNumero(ByVal iNumero As Long) As String
+On Error GoTo Erro
+
+   If Not rsNFs.EOF Then
+      ' Copiar XML para ser Reprocessado a fim de corrigir duplicidade
+      Call FArquivosNF("ARQUIVOPROCESSAMENTO")
+
+      ' Envia solicitação de consulta
+      Open I_UnidadeNFe & I_PastaUNINFe & "Notas\Notas.TXT" For Output As #1
+      
+      Print #1, FTAGPrincipal("Versao")
+      Print #1, "<consSitNFe xmlns=" & Chr(34) & "http://www.portalfiscal.inf.br/nfe" & Chr(34) & " versao=" & Chr(34) & "4.00" & Chr(34) & ">"
+      Print #1, Space(2) & FTAG("tpAmb", I_AmbienteNF)                                                  ' 1 - Produção ou 2 - Homologação
+      Print #1, Space(2) & FTAG("xServ", "CONSULTAR")
+      Print #1, Space(2) & FTAG("tpEmis", "1")
+      Print #1, Space(2) & FTAG("chNFe", rsNFs!cnf)
+      Print #1, "</consSitNFe>"
+      Close #1
+      
+      Call FArquivosNF("CONSULTARNUMERO")
+   End If
+
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FConsultarNumero")
+End Function
+
+Public Function FCancelarNota(ByVal iNumero As Long, ByVal sMotivo As String) As String
+On Error GoTo Erro
+Dim sHora As String
+
+   sHora = Format(Time - TimeValue("00:10"), "hh:mm")
+
+   Open I_UnidadeNFe & I_PastaUNINFe & "Notas\Notas.TXT" For Output As #1
+   
+   Print #1, FTAGPrincipal("Versao")
+   Print #1, FTAGPrincipal("EnvioEvento")
+   Print #1, FTAG("idLote", "1")
+   Print #1, FTAGPrincipal("Evento")
+   Print #1, "<iNFCevento Id=" & Chr(34) & "ID110111" & rsNFs!cnf & "01" & Chr(34) & ">"
+   Print #1, FTAG("cOrgao", I_EmpresaCodigoUF)
+   Print #1, FTAG("tpAmb", I_AmbienteNF)
+   Print #1, FTAG("CNPJ", I_Empresa_CNPJ_CPF)
+   Print #1, FTAG("chNFCe", rsNFs!cnf)
+'   Print #1, FTAG("dhEvento", FData("P", Date, Time))
+   Print #1, FTAG("dhEvento", FData("P", Date, sHora))
+   Print #1, FTAG("tpEvento", "110111")
+   Print #1, FTAG("nSeqEvento", "1")
+   Print #1, FTAG("verEvento", "1.00")
+   Print #1, "<detEvento versao=" & Chr(34) & "1.00" & Chr(34) & ">"
+   Print #1, FTAG("descEvento", "Cancelamento")
+   Print #1, FTAG("nProt", rsNFs!Protocolo)
+   Print #1, FTAG("xJust", sMotivo)
+   Print #1, "</detEvento>"
+   Print #1, "</iNFCevento>"
+   Print #1, "</evento>"
+   Print #1, "</envEvento>"
+   Close #1
+
+   Call FArquivosNF("CANCELARNOTA")
+
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FCancelarNota")
+End Function
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'
+'
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Verifica se XML foi autorizado e atualiza a base
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Public Function FVerificaAprovacaoXML(iNumero As Long, dData As Date, sChave As String, iSituacao As Integer)
+On Error GoTo Erro
+
+   If iSituacao <> NFE_SIT_APROVADA And iSituacao <> NFE_SIT_CANCELADA Then
+      If Dir(I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Enviados\Autorizados\" & Format(dData, "yyyymm") & "\" & sChave & "-procNFe.XML") <> "" Then
+         cnSistema.Execute "Update " & I_TabelasNF & " set " & _
+                  "Situacao = 2 " & _
+                  "Where Numero = " & iNumero
+      End If
+   End If
+      
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FVerificaAprovacaoXML")
+End Function
+
+' Verifica se XML de Cancelamento não possui erro
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Public Function FVerificaErroCancelamento(sChave As String)
+On Error GoTo Erro
+Dim handle As Integer
+Dim Linha As String
+Dim bRetorno As Boolean
+Dim strMensagem As String
+   
+   If Dir(I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Retorno\" & sChave & "-can.err") <> "" Then
+      handle = FreeFile
+      Open I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Retorno\" & sChave & "-can.err" For Input As #handle
+
+      bRetorno = False
+      While Not EOF(handle)
+         Line Input #handle, Linha
+
+         strMensagem = strMensagem & Linha & Chr(13)
+      Wend
+
+      MsgBox strMensagem, vbExclamation + vbOKOnly, "Erro de cancelamento da NFe"
+      Close #handle
+
+      Kill I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & sChave & "-can.err"
+   End If
+     
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FVerificaErroCancelamento")
+End Function
+
+' Atualiza Protocolo
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Public Function FAtualizarProtocolo(iNumero As Long, dData As Date, sChave As String)
+On Error GoTo Erro
+Dim handle As Integer
+Dim Linha As String
+Dim bRetorno As Boolean
+Dim strMensagem As String
+
+'   Set rsVerificar = cnSistema.Execute("Select * From NFe WHERE Numero=" & iNumero)
+
+'   If IsNull(rsVerificar!Protocolo) Or Trim(rsVerificar!Protocolo) = "" Then
+'''   If bStatusProtocolo Then
+      Dim nProtocolo As String
+      
+      If Dir(I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Enviados\Autorizados\" & Format(dData, "yyyymm") & "\" & sChave & "-procNFe.XML") <> "" Then
+         handle = FreeFile
+         Open I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Enviados\Autorizados\" & Format(dData, "yyyymm") & "\" & sChave & "-procNFe.XML" For Input As #handle
+         
+         Line Input #handle, Linha
+         
+         nProtocolo = PesquisarTAG(Linha, "nProt")
+         
+         If Trim(nProtocolo) <> "" Then
+            cnSistema.Execute "Update NFCe set " & _
+                     "Protocolo = '" & nProtocolo & "' " & _
+                     "Where Numero = " & iNumero
+         End If
+         
+         Close #handle
+      End If
+'''   End If
+     
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FAtualizarProtocolo")
+End Function
+
+' Verifica se cancelamento foi autorizado
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Public Function FVerificaAutorizacaoCancelamento(iNumero As Long, dData As Date, sChave As String, iSituacao As Integer)
+On Error GoTo Erro
+Dim handle As Integer
+Dim Linha As String
+Dim bRetorno As Boolean
+Dim strMensagem As String
+Dim nProtocolo As String
+
+'   sEmpresaNFe = LerArquivoINI("NFe", "Empresa", CaminhoINI & "\System.ini")
+   If Dir(I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Retorno\" & sChave & "-ret-env-canc.xml") <> "" And iSituacao <> 3 Then
+   '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+      handle = FreeFile
+      Open I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Retorno\" & sChave & "-ret-env-canc.XML" For Input As #handle
+
+      Line Input #handle, Linha
+
+      nProtocolo = PesquisarTAG(Linha, "nProt")
+
+      Close #handle
+
+      If Trim(nProtocolo) <> "" Then
+         cnSistema.Execute "Update NFe set " & _
+                  "ProtocoloCancelamento = '" & nProtocolo & "', " & _
+                  "Situacao = 3 " & _
+                  "Where Numero = " & iNumero
+
+         FileCopy I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Retorno\" & sChave & "-can.XML", I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Enviados\Autorizados\" & Format(dData, "yyyymm") & "\" & sChave & "-can.XML"
+      End If
+   End If
+
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FVerificaAutorizacaoCancelamento")
+End Function
+
+Public Function ConverterTXT_XML(iId As Long, iNumero As Long, dData As Date, sChave As String)
+On Error GoTo Erro
+Dim handle As Integer
+Dim Linha As String
+Dim bRetorno As Boolean
+Dim strMensagem As String
+
+Dim rsVerificar As New ADODB.Recordset
+
+   ' Verifica se XML foi convertido com sucesso
+   ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'   sEmpresaNFe = LerArquivoINI("NFe", "Empresa", CaminhoINI & "\System.ini")
+'   Set rsVerificar = cnSistema.Execute("Select * From NFe WHERE Numero=" & iNumero)
+'   If Not rsVerificar.EOF Then
+      If Dir(I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(dData, "dd_mm_yyyy") & "-nfe.txt") <> "" Then
+         ' Atualizar Chave da NFe
+         handle = FreeFile
+         Open I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(dData, "dd_mm_yyyy") & "-nfe.txt" For Input As #handle
+   
+         bRetorno = False
+         While Not EOF(handle)
+            Line Input #handle, Linha
+''            If PesquisarTAG(Linha, "cStat") = "01" Then
+''               bRetorno = True
+''            End If
+            If Mid(Linha, 1, 5) = "cStat" Then
+               If Mid(Linha, 7, 2) = "01" Then
+                  bRetorno = True
+               End If
+            End If
+   
+            If bRetorno Then
+               If Mid(Linha, 1, 11) = "Nota fiscal" Then
+                  If Val(Mid(Linha, 14, 9)) = iNumero Then
+                     cnSistema.Execute "Update NFe set " & _
+                              "ChaveNFCe = '" & Mid(Linha, 47, 44) & "' " & _
+                              "Where idNFCe = " & iId
+   
+                  End If
+               End If
+            End If
+         Wend
+         Close #handle
+         If Dir(I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe.txt") <> "" Then FileCopy I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe.txt", I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Temp\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe.txt"
+         If Dir(I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe-orig.txt") <> "" Then FileCopy I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe-orig.txt", I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Temp\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe-orig.txt"
+         If Dir(I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe.txt") <> "" Then Kill I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe.txt"
+         If Dir(I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe.txt") <> "" Then Kill I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(rsVerificar!DataEmissao, "dd_mm_yyyy") & "-nfe-orig.txt"
+      End If
+   
+      ' Verifica se XML teve erro de conversão
+      ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+   '   sEmpresaNFe = LerArquivoINI("NFe", "Empresa", CaminhoINI & "\System.ini")
+      If Dir(I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(dData, "dd_mm_yyyy") & "-nfe.err") <> "" Then
+         ' Atualizar Chave da NFe
+         handle = FreeFile
+         Open I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(dData, "dd_mm_yyyy") & "-nfe.err" For Input As #handle
+   
+         bRetorno = False
+         While Not EOF(handle)
+            Line Input #handle, Linha
+            If Mid(Linha, 1, 5) = "cStat" Then
+               If Mid(Linha, 7, 2) = "01" Then
+                  bRetorno = True
+               End If
+            End If
+            
+            strMensagem = strMensagem & Linha & Chr(13)
+         Wend
+         
+         cnSistema.Execute "Update NFe set " & _
+                  "Situacao = 0 " & _
+                  "Where idNFCe = " & iId
+                  
+         MsgBox strMensagem, vbExclamation + vbOKOnly, "Erro de envio da NFe"
+         Close #handle
+         
+         Kill I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & StrZero(iNumero, 6) & "_" & RemoveCaracteres(I_Empresa_CNPJ_CPF) & "_001_" & Format(dData, "dd_mm_yyyy") & "-nfe.err"
+      End If
+      
+      ' Verifica se XML não possui erros
+      ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+   '   sEmpresaNFe = LerArquivoINI("NFe", "Empresa", CaminhoINI & "\System.ini")
+      If Dir(I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & sChave & "-nfe.err") <> "" Then
+         ' Atualizar Chave da NFe
+         handle = FreeFile
+         Open I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & sChave & "-nfe.err" For Input As #handle
+   
+         bRetorno = False
+         While Not EOF(handle)
+            Line Input #handle, Linha
+   
+            strMensagem = strMensagem & Linha & Chr(13)
+         Wend
+   
+         cnSistema.Execute "Update NFe set " & _
+                  "Situacao = 0 " & _
+                  "Where idNFCe = " & iId
+   
+         MsgBox strMensagem, vbExclamation + vbOKOnly, "Erro de envio da NFe"
+         Close #handle
+   
+         Kill I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Retorno\" & sChave & "-nfe.err"
+      End If
+'   End If
+
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".ConverterTXT_XML")
+End Function
+
+'------------------------------------------------------------------------------------------------------'
+' Classe NFs Versão 4.00
+' Autor: Robinson
+' Função: Classes de Geração do XML da Versão 4.00
+' Data da Criação: 29/08/2018
+'------------------------------------------------------------------------------------------------------'
+
+Public Function NotasNFsGrupoB(iNumero As Long)
+On Error GoTo Erro
+ 
+   ' Corpo
+   Print #1, Space(4) & "<ide>"
+
+   Print #1, Space(6) & FTAG("cUF", rsNFs!cUF)
+   Print #1, Space(6) & FTAG("cNF", rsNFs!cnf)
+   Print #1, Space(6) & FTAG("natOp", rsNFs!natOp)
+'''''   Print #1, Space(6) & FTAG("indPag", rsNFs!indPag)
+   Print #1, Space(6) & FTAG("mod", rsNFs!Mod)
+   Print #1, Space(6) & FTAG("serie", rsNFs!SERIE)
+   Print #1, Space(6) & FTAG("nNF", rsNFs!nnf)
+   Print #1, Space(6) & FTAG("dhEmi", rsNFs!dhEmi)
+'     Print #1, Space(6) & FTAG("dhSaiEnt", rsNFs!dhSaiEnt)
+   Print #1, Space(6) & FTAG("tpNF", rsNFs!tpNF)
+   Print #1, Space(6) & FTAG("idDest", rsNFs!idDest)
+   Print #1, Space(6) & FTAG("cMunFG", rsNFs!cMunFG)
+   Print #1, Space(6) & FTAG("tpImp", rsNFs!tpImp)
+   Print #1, Space(6) & FTAG("tpEmis", rsNFs!tpEmis)
+   Print #1, Space(6) & FTAG("cDV", rsNFs!cDV)
+   Print #1, Space(6) & FTAG("tpAmb", rsNFs!tpAmb)
+   Print #1, Space(6) & FTAG("finNFe", rsNFs!finNFe)
+   Print #1, Space(6) & FTAG("indFinal", rsNFs!indFinal)
+   Print #1, Space(6) & FTAG("indPres", rsNFs!indPres)
+   Print #1, Space(6) & FTAG("procEmi", rsNFs!procEmi)
+   Print #1, Space(6) & FTAG("verProc", rsNFs!verProc)
+
+   Print #1, Space(4) & "</ide>"
+   
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoB"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoB")
+End Function
+
+Public Function NotasNFsGrupoC()
+On Error GoTo Erro
+
+   Print #1, Space(4) & "<emit>"
+   
+   Print #1, Space(6) & FTAG("CNPJ", rsNFsEmitentes!CNPJ)
+   Print #1, Space(6) & FTAG("xNome", rsNFsEmitentes!xNome)
+   Print #1, Space(6) & FTAG("xFant", rsNFsEmitentes!xFant)
+             
+   Print #1, Space(6) & "<enderEmit>"
+   Print #1, Space(8) & FTAG("xLgr", rsNFsEmitentes!xLgr)
+   Print #1, Space(8) & FTAG("nro", rsNFsEmitentes!nro)
+   Print #1, Space(8) & FTAG("xBairro", rsNFsEmitentes!xBairro)
+   Print #1, Space(8) & FTAG("cMun", rsNFsEmitentes!cMun)
+   Print #1, Space(8) & FTAG("xMun", rsNFsEmitentes!xMun)
+   Print #1, Space(8) & FTAG("UF", rsNFsEmitentes!UF)
+   Print #1, Space(8) & FTAG("CEP", rsNFsEmitentes!CEP)
+   Print #1, Space(8) & FTAG("cPais", rsNFsEmitentes!cPais)
+   Print #1, Space(8) & FTAG("xPais", rsNFsEmitentes!xPais)
+   Print #1, Space(8) & FTAG("fone", rsNFsEmitentes!fone)
+   Print #1, Space(6) & "</enderEmit>"
+   
+   Print #1, Space(6) & FTAG("IE", rsNFsEmitentes!IE)
+   Print #1, Space(6) & FTAG("CNAE", rsNFsEmitentes!CNAE)
+   Print #1, Space(6) & FTAG("IM", rsNFsEmitentes!IM)
+   Print #1, Space(6) & FTAG("CRT", rsNFsEmitentes!CRT)
+   
+   Print #1, Space(4) & "</emit>"
+     
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoC"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoC")
+End Function
+
+Public Function NotasNFsGrupoE(iNumero As Long)
+On Error GoTo Erro
+
+   ' Destinatario
+   '=======================================================================================================
+
+   Print #1, Space(4) & "<dest>"
+   If Len(Trim(rsNFsDestinatarios!CNPJ)) > 11 Then
+      Print #1, Space(6) & FTAG("CNPJ", rsNFsDestinatarios!CNPJ)
+      If Trim(rsNFsDestinatarios!xNome) <> "" Then
+         Print #1, Space(6) & FTAG("xNome", rsNFsDestinatarios!xNome)
+      End If
+   Else
+      Print #1, Space(6) & FTAG("CPF", rsNFsDestinatarios!CPF)
+      If Trim(rsNFsDestinatarios!xNome) <> "" Then
+         Print #1, Space(6) & FTAG("xNome", rsNFsDestinatarios!xNome)
+      End If
+   End If
+   
+   ' Não imprimir no modelo 65 - NFCe
+   '=======================================================================================================
+   Print #1, Space(6) & "<enderDest>"
+   Print #1, Space(8) & FTAG("xLgr", rsNFsDestinatarios!xLgr)
+   Print #1, Space(8) & FTAG("nro", rsNFsDestinatarios!nro)
+   Print #1, Space(8) & FTAG("xBairro", rsNFsDestinatarios!xBairro)
+   Print #1, Space(8) & FTAG("cMun", rsNFsDestinatarios!cMun)
+   Print #1, Space(8) & FTAG("xMun", rsNFsDestinatarios!xMun)
+   Print #1, Space(8) & FTAG("UF", rsNFsDestinatarios!UF)
+   Print #1, Space(8) & FTAG("CEP", rsNFsDestinatarios!CEP)
+   Print #1, Space(8) & FTAG("cPais", rsNFsDestinatarios!cPais)
+   Print #1, Space(8) & FTAG("xPais", rsNFsDestinatarios!xPais)
+   Print #1, Space(8) & FTAG("fone", rsNFsDestinatarios!fone)
+   Print #1, Space(6) & "</enderDest>"
+
+   Print #1, Space(6) & FTAG("indIEDest", rsNFsDestinatarios!indIEDest)
+   'Print #1, Space(6) & FTAG("IE", rsNFsDestinatarios!IE)
+   Print #1, Space(4) & "</dest>"
+
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoE"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoE")
+End Function
+
+Public Function NotasNFsGrupoH(iNumero As Long)
+On Error GoTo Erro
+'''''Dim rsNFCe As New ADODB.Recordset
+'''''Dim rsNFCeItens As New ADODB.Recordset
+Dim rsProdutos As New ADODB.Recordset
+Dim rsUnidades As New ADODB.Recordset
+Dim rsSituacoesTributarias As New ADODB.Recordset
+Dim rsTributos As New ADODB.Recordset
+Dim rsNaturezasOperacao As New ADODB.Recordset
+Dim rsEmpresa As New ADODB.Recordset
+Dim rsTemp As New ADODB.Recordset
+
+'''''Dim dValorTributos As Double
+'''''Dim dValorTotalBC As Double
+'''''Dim dValorTotalICMS As Double
+'''''Dim dValorTotalProdutos As Double
+'''''Dim dValorTotalDesconto As Double
+'''''Dim dValorTotalFrete As Double
+'''''Dim dValorTotalNFCe As Double
+'''''Dim dValorTotalBaseISS As Double
+'''''Dim dValorTotalISS As Double
+'''''
+'   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & Val(lvwNFCes.ListItems(lvwNFCes.SelectedItem.Index)))
+'   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & NFCeNumero)
+'''''   Set rsEmpresa = cnSistema.Execute("Select * From Empresa")
+'''''   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & iNumero)
+'''''   Set rsNaturezasOperacao = cnSistema.Execute("Select * From NaturezasOperacao WHERE idNaturezaOperacao=" & rsNFCe!idNaturezaOperacao)
+
+   ' Itens
+   Dim Contador As Integer
+   Dim snItemPed As Integer
+   Dim sICMSAproveitamento As String
+   Contador = 1
+
+   dValorTributos = 0
+
+'''''   Set rsNFCeItens = cnSistema.Execute("SELECT * FROM NFCeItens WHERE NFCeItens.idNFCe = " & rsNFCe!idNFCe)
+
+   rsNFsItens.MoveFirst             ' Ir para o primeiro registro do Produto
+   
+'''''   Do While Not rsNFCeItens.EOF
+   Do While Not rsNFsItens.EOF
+      Set rsProdutos = cnSistema.Execute("SELECT * FROM Produtos WHERE idProduto = " & rsNFsItens!idProduto)
+'''''      Set rsUnidades = cnSistema.Execute("Select * From UnidadesMedida WHERE idUnidadeMedida=" & rsProdutos!idUnidade)
+'''''      Set rsSituacoesTributarias = cnSistema.Execute("Select * from SituacoesTributarias WHERE idSituacaoTributaria=" & rsNFCeItens!idSituacaoTributaria)
+'''''      Set rsTributos = cnSistema.Execute("SELECT * FROM TabelaIBPT WHERE CodigoNCM LIKE '%" & rsProdutos!CodigoNCM & "%'")
+      
+      If rsProdutos!ICMSReaproveitamento > 0 Then
+         sICMSAproveitamento = "EMPRESA OPTANTE PELO SIMPLES NACIONAL - ALIQUOTA APLICAVEL DE CALCULO DO CREDITO " & Format(rsProdutos!ICMSReaproveitamento, "###0.00") & "% - R$ " & Format((((rsNFsItens!quantidade * rsNFsItens!ValorUnitario) * rsProdutos!ICMSReaproveitamento) / 100), "##,###,##0.00")
+      Else
+         sICMSAproveitamento = ""
+      End If
+      
+'''''      Dim sCodigoProduto As String
+'''''      Dim sCodigoBarras As String
+'''''      Dim sDescricaoProduto As String
+'''''      Dim sCodigoNCM As String
+'''''      Dim sEXTIPI As String
+'''''      Dim sCFOP As String
+'''''      Dim sUnidComercial As String
+'''''      Dim sQuantidadeComercial As String
+'''''      Dim sVlUnitarioComercial As String
+'''''      Dim sVlTotalBruto As String
+'''''      Dim sCodigoBarrasTrib As String
+'''''      Dim sUnidTrib As String
+'''''      Dim sQuantidadeTrib As String
+'''''      Dim sVlUnitarioTrib As String
+'''''      Dim sVlFrete As String
+'''''      Dim sVlSeguro As String
+'''''      Dim sVlDesconto As String
+'''''      Dim sVlOutros As String
+''''''      Dim dValorTributos As Double
+'''''      Dim dCalculoBC As Double
+'''''      Dim sIndTot As String
+'''''      Dim sxPed As String
+'''''      Dim snItemPed As String
+      
+'''''      sCodigoProduto = rsProdutos!Codigo
+'''''      sCodigoBarras = ""
+'''''      sDescricaoProduto = IIf(rsNFCeItens!DiscriminacaoProduto = "", RemoveAcentos(rsProdutos!Descricao), RemoveAcentos(rsNFCeItens!DiscriminacaoProduto))
+'''''      If Not IsNull(rsNFCeItens!DescricaoComplementar) Then
+'''''         If Trim(rsNFCeItens!DescricaoComplementar) <> "" Then
+'''''            sDescricaoProduto = sDescricaoProduto & " " & RemoveAcentos(rsNFCeItens!DescricaoComplementar)
+'''''          End If
+'''''      End If
+'''''      sCodigoNCM = IIf(rsProdutos!CodigoNCM = "" Or IsNull(rsProdutos!CodigoNCM), "", rsProdutos!CodigoNCM)
+'''''      sEXTIPI = ""
+'''''      sCFOP = RemoveCaracteres(rsNFCeItens!CFOP)
+'''''      sUnidComercial = IIf(Not rsUnidades.EOF, rsUnidades!Sigla, "UN")
+'''''      If rsNaturezasOperacao!Descricao <> "COMPLEMENTO DE VALOR" Then
+'''''         sQuantidadeComercial = Substitui(Format(rsNFCeItens!quantidade, "#######0.0000"), ",", ".")
+'''''         sVlUnitarioComercial = Substitui(Format(rsNFCeItens!ValorUnitario, "#######0.00"), ",", ".")
+'''''         sVlTotalBruto = Substitui(Format(rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario, "#######0.00"), ",", ".")
+'''''         sCodigoBarrasTrib = ""
+'''''         sUnidTrib = IIf(Not rsUnidades.EOF, rsUnidades!Sigla, "UN")
+'''''         sQuantidadeTrib = Substitui(Format(rsNFCeItens!quantidade, "#######0.0000"), ",", ".")
+'''''         sVlUnitarioTrib = Substitui(Format(rsNFCeItens!ValorUnitario, "#######0.0000"), ",", ".")
+'''''         sVlFrete = IIf(rsNFCeItens!ValorFrete > 0, Substitui(Format(rsNFCeItens!ValorFrete, "#######0.00"), ",", "."), "")
+'''''         sVlSeguro = ""
+'''''         sVlDesconto = IIf(rsNFCeItens!Desconto > 0, Substitui(Format((((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) * rsNFCeItens!Desconto) / 100), "#######0.00"), ",", "."), "")
+'''''      Else
+'''''         sQuantidadeComercial = Substitui(Format(0, "#######0.0000"), ",", ".")
+'''''         sVlUnitarioComercial = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''         sVlTotalBruto = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''         sCodigoBarrasTrib = ""
+'''''         sUnidTrib = IIf(Not rsUnidades.EOF, rsUnidades!Sigla, "UN")
+'''''         sQuantidadeTrib = Substitui(Format(0, "#######0.0000"), ",", ".")
+'''''         sVlUnitarioTrib = Substitui(Format(0, "#######0.0000"), ",", ".")
+'''''         sVlFrete = IIf(rsNFCeItens!ValorFrete > 0, Substitui(Format(rsNFCeItens!ValorFrete, "#######0.00"), ",", "."), "")
+'''''         sVlSeguro = ""
+'''''         sVlDesconto = IIf(rsNFCeItens!Desconto > 0, Substitui(Format((((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) * rsNFCeItens!Desconto) / 100), "#######0.00"), ",", "."), "")
+'''''      End If
+'''''      sVlOutros = ""
+'''''      sIndTot = "1"
+'''''      sxPed = ""
+'''''      snItemPed = ""
+'''''
+'''''      If Not rsTributos.EOF Then
+'''''         dValorTributos = dValorTributos + (((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) * rsTributos!AliquotaNacional) / 100)
+'''''      End If
+      
+'      Print #1, "H|" & _
+'                Contador & "|" & _
+'                sICMSAproveitamento
+
+      snItemPed = Contador
+      
+      Print #1, Space(4) & "<det nItem=" & """" & Contador & """" & ">"
+      Print #1, Space(6) & "<prod>"
+      Print #1, Space(8) & FTAG("cProd", rsNFsItens!cProd)
+      Print #1, Space(8) & FTAG("cEAN", rsNFsItens!cEAN)
+      Print #1, Space(8) & FTAG("xProd", rsNFsItens!xProd)
+      Print #1, Space(8) & FTAG("NCM", rsNFsItens!NCM)
+      Print #1, Space(8) & FTAG("CFOP", rsNFsItens!CFOP)
+      Print #1, Space(8) & FTAG("uCom", rsNFsItens!uCom)
+      Print #1, Space(8) & FTAG("qCom", rsNFsItens!qCom)
+      Print #1, Space(8) & FTAG("vUnCom", rsNFsItens!vUnCom)
+      Print #1, Space(8) & FTAG("vProd", rsNFsItens!vProd)
+      Print #1, Space(8) & FTAG("cEANTrib", rsNFsItens!cEANTrib)
+      Print #1, Space(8) & FTAG("uTrib", rsNFsItens!uTrib)
+      Print #1, Space(8) & FTAG("qTrib", rsNFsItens!qTrib)
+      Print #1, Space(8) & FTAG("vUnTrib", rsNFsItens!vUnTrib)
+      Print #1, Space(8) & FTAG("indTot", rsNFsItens!indTot)
+'      Print #1, Space(8) & FTAG("xPed", rsNFsItens!xPed)
+'      Print #1, Space(8) & FTAG("nItemPed", rsNFsItens!nItemPed)
+      Print #1, Space(6) & "</prod>"
+      
+'''''    ' Tributos Incidentes
+''''''      Print #1, "M"
+''''''      Print #1, "N"
+      
+      Print #1, Space(6) & "<imposto>"
+''''''      Print #1, Space(8) & FTAG("vTotTrib", CStr(dCalculoBC))
+'''''
+'''''      Dim sCST As String
+'''''      sCST = Mid(rsSituacoesTributarias!Codigo, 1, 3)
+'''''
+'''''      Dim sOrigem As String
+'''''      Dim sModalidadeBC As String
+'''''      Dim sPercRedBC As String
+'''''      Dim sValorBC As String
+'''''      Dim sICMS As String
+'''''      Dim sValorICMS As String
+'''''
+'''''      Dim modBCST As String
+'''''      Dim pMVAST As String
+'''''      Dim pRedBCST As String
+'''''      Dim vBCST As String
+'''''      Dim pICMSST As String
+'''''      Dim vICMSST As String
+      
+'''''      If rsNFCeItens!ISS <= 0 Then
+      If rsNFsItens!AliqISS <= 0 Then
+         Print #1, Space(8) & "<ICMS>"
+      
+'''''         Dim Nx As String
+         Select Case rsNFsItens!CSOSN
+                Case "000" ' Tributada Integralmente
+'''''                     If rsNFCeItens!ICMS > 0 Then
+'''''                        dCalculoBC = (rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) - (((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) * rsNFCeItens!Desconto) / 100)
+'''''
+'''''                        sCST = "00"
+'''''                        sOrigem = "0"
+'''''                        sModalidadeBC = "3"
+'''''                        sValorBC = Substitui(Format(dCalculoBC, "#######0.00"), ",", ".")
+'''''                        sICMS = Substitui(Format(rsNFCeItens!ICMS, "###0.00"), ",", ".")
+'''''                        sValorICMS = Substitui(Format(((dCalculoBC * rsNFCeItens!ICMS) / 100), "#######0.00"), ",", ".")
+'''''                     Else
+'''''                        dCalculoBC = 0
+'''''
+'''''                        sCST = "00"
+'''''                        sOrigem = "0"
+'''''                        sModalidadeBC = "3"
+'''''                        sValorBC = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                        sICMS = Substitui(Format(0, "###0.00"), ",", ".")
+'''''                        sValorICMS = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     End If
+'''''
+'''''                     Print #1, "N02|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST & "|" & _
+'''''                               sModalidadeBC & "|" & _
+'''''                               sValorBC & "|" & _
+'''''                               sICMS & "|" & _
+'''''                               sValorICMS & "|"
+
+                Case "010"
+'''''                     Nx = "03"
+                Case "020"
+'''''                     dCalculoBC = Round(((((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) - (((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) * rsNFCeItens!Desconto) / 100)) * rsNFCeItens!BaseReduzida) / 100), 2)
+'''''
+'''''                     sCST = "20"
+'''''                     sOrigem = "0"
+'''''                     sModalidadeBC = "3"
+'''''                     sPercRedBC = Substitui(Format(rsNFCeItens!BaseReduzida, "#########0.00"), ",", ".")
+'''''                     sValorBC = Substitui(Format(dCalculoBC, "#######0.00"), ",", ".")
+'''''                     sICMS = Substitui(Format(rsNFCeItens!ICMS, "###0.00"), ",", ".")
+'''''                     sValorICMS = Substitui(Format(((dCalculoBC * rsNFCeItens!ICMS) / 100), "#######0.00"), ",", ".")
+'''''
+'''''                     Print #1, "N04|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST & "|" & _
+'''''                               sModalidadeBC & "|" & _
+'''''                               sPercRedBC & "|" & _
+'''''                               sValorBC & "|" & _
+'''''                               sICMS & "|" & _
+'''''                               sValorICMS
+
+                Case "030"
+'''''                     Nx = "05"
+                Case "040"
+'''''                     Nx = "06"
+                Case "051"
+'''''                     Nx = "07"
+                Case "060"
+'''''                     Nx = "08"
+                Case "070"
+'''''                     Nx = "09"
+                Case "090"
+'''''                     Nx = "10"
+         
+                Case "101" ' Tributada com permissão de crédito
+'''''                     Dim spCredS As String
+'''''                     Dim svCredICMSSN As String
+'''''
+'''''                     sOrigem = "0"
+'''''                     spCredS = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     svCredICMSSN = Substitui(Format(0, "###0.00"), ",", ".")
+'''''
+'''''                     Print #1, "N10c|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST & "|" & _
+'''''                               spCredS & "|" & _
+'''''                               svCredICMSSN
+
+                     Print #1, Space(10) & "<ICMSSN101>"
+                     Print #1, Space(12) & FTAG("orig", rsNFsItens!orig)
+                     Print #1, Space(12) & FTAG("CSOSN", rsNFsItens!CSOSN)
+                     Print #1, Space(12) & FTAG("pCredSN", rsNFsItens!pCredSN)
+                     Print #1, Space(12) & FTAG("vCredICMSSN", rsNFsItens!vCredICMSSN)
+                     Print #1, Space(10) & "</ICMSSN101>"
+
+
+                Case "102" ' Tributada pelo Simples Nacional sem permissão de crédito.
+'''''                     sOrigem = "0"
+'''''
+''''''                     Print #1, "N10d|" & _
+''''''                               sOrigem & "|" & _
+''''''                               sCST
+                               
+                     Print #1, Space(10) & "<ICMSSN102>"
+                     Print #1, Space(12) & FTAG("orig", rsNFsItens!orig)
+                     Print #1, Space(12) & FTAG("CSOSN", rsNFsItens!CSOSN)
+                     Print #1, Space(10) & "</ICMSSN102>"
+                               
+                               
+                Case "103" ' Isenção do ICMS no Simples Nacional para faixa de receita bruta.
+'''''                     sOrigem = "0"
+'''''
+'''''                     Print #1, "N10d|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST
+                               
+                     Print #1, Space(10) & "<ICMSSN103>"
+                     Print #1, Space(12) & FTAG("orig", rsNFsItens!orig)
+                     Print #1, Space(12) & FTAG("CSOSN", rsNFsItens!CSOSN)
+                     Print #1, Space(10) & "</ICMSSN103>"
+                               
+                Case "300" ' Imune
+'''''                     sOrigem = "0"
+'''''
+'''''                     Print #1, "N10d|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST
+                               
+                     Print #1, Space(10) & "<ICMSSN300>"
+                     Print #1, Space(12) & FTAG("orig", rsNFsItens!orig)
+                     Print #1, Space(12) & FTAG("CSOSN", rsNFsItens!CSOSN)
+                     Print #1, Space(10) & "</ICMSSN300>"
+                               
+                Case "400" ' Não tributada
+'''''                     sOrigem = "0"
+'''''
+'''''                     Print #1, "N10d|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST
+                               
+                     Print #1, Space(10) & "<ICMSSN400>"
+                     Print #1, Space(12) & FTAG("orig", rsNFsItens!orig)
+                     Print #1, Space(12) & FTAG("CSOSN", rsNFsItens!CSOSN)
+                     Print #1, Space(10) & "</ICMSSN400>"
+                               
+                Case "202" ' Tributada sem permissão de crédito com Substituição Tributaria
+                     
+'''''                     sOrigem = "0"
+'''''                     modBCST = "0"
+'''''                     pMVAST = Substitui(Format(0, "##0.00"), ",", ".")
+'''''                     pRedBCST = Substitui(Format(0, "##0.00"), ",", ".")
+'''''                     vBCST = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     pICMSST = Substitui(Format(0, "##0.00"), ",", ".")
+'''''                     vICMSST = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''
+'''''                     Print #1, "N10f|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST & "|" & _
+'''''                               modBCST & "|" & _
+'''''                               pMVAST & "|" & _
+'''''                               pRedBCST & "|" & _
+'''''                               vBCST & "|" & _
+'''''                               pICMSST & "|" & _
+'''''                               vICMSST
+         
+                     Print #1, Space(10) & "<ICMSSN202>"
+                     Print #1, Space(12) & FTAG("orig", rsNFsItens!orig)
+                     Print #1, Space(12) & FTAG("CSOSN", rsNFsItens!CSOSN)
+                     Print #1, Space(12) & FTAG("modBCST", rsNFsItens!modBCST)
+                     Print #1, Space(12) & FTAG("vBCSTRet", rsNFsItens!vBCSTRet)
+                     Print #1, Space(12) & FTAG("pMVAST", rsNFsItens!pMVAST)
+                     Print #1, Space(12) & FTAG("pRedBCST", rsNFsItens!pRedBCST)
+                     Print #1, Space(12) & FTAG("vBCST", rsNFsItens!vBCST)
+                     Print #1, Space(12) & FTAG("pICMSST", rsNFsItens!pICMSST)
+                     Print #1, Space(12) & FTAG("vICMSST", rsNFsItens!vICMSST)
+                     Print #1, Space(12) & FTAG("pFCPST", rsNFsItens!pFCPST)
+                     Print #1, Space(12) & FTAG("vFCPST", rsNFsItens!vFCPST)
+                     Print #1, Space(10) & "</ICMSSN202>"
+         
+                Case "500" ' Substituição Tributaria
+'''''                     Dim vBCSTRet As String
+'''''                     Dim vICMSSTRet As String
+'''''
+'''''                     sOrigem = "0"
+'''''                     modBCST = "0"
+'''''                     vBCSTRet = Substitui(Format(0, "##0.00"), ",", ".")
+'''''                     vICMSSTRet = Substitui(Format(0, "##0.00"), ",", ".")
+                     
+                     Print #1, Space(10) & "<ICMSSN500>"
+                     Print #1, Space(12) & FTAG("orig", rsNFsItens!orig)
+                     Print #1, Space(12) & FTAG("CSOSN", rsNFsItens!CSOSN)
+                     Print #1, Space(12) & FTAG("vBCSTRet", rsNFsItens!vBCSTRet)
+                     Print #1, Space(12) & FTAG("vICMSSTRet", rsNFsItens!vICMSSTRet)
+                     Print #1, Space(10) & "</ICMSSN500>"
+                     
+'''''                     Print #1, "N10g|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST & "|" & _
+'''''                               vBCSTRet & "|" & _
+'''''                               vICMSSTRet
+         
+                Case "900" ' Outros
+'''''                     Dim modBC As String
+'''''                     Dim vBC As String
+'''''                     Dim pRedBC As String
+'''''                     Dim pICMS As String
+'''''                     Dim vICMS As String
+'''''                     Dim pCredSN As String
+'''''                     Dim vCredICMSSN As String
+'''''
+'''''                     sOrigem = "0"
+'''''                     modBC = "0"
+'''''                     vBC = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     pRedBC = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     pICMS = Substitui(Format(0, "##0.00"), ",", ".")
+'''''                     vICMS = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     modBCST = "0"
+'''''                     pMVAST = Substitui(Format(0, "##0.00"), ",", ".")
+'''''                     pRedBCST = Substitui(Format(0, "##0.00"), ",", ".")
+'''''                     vBCST = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     pICMSST = Substitui(Format(0, "##0.00"), ",", ".")
+'''''                     vICMSST = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     pCredSN = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''                     vCredICMSSN = Substitui(Format(0, "#######0.00"), ",", ".")
+'''''
+'''''                     Print #1, "N10h|" & _
+'''''                               sOrigem & "|" & _
+'''''                               sCST & "|" & _
+'''''                               modBC & "|" & _
+'''''                               vBC & "|" & _
+'''''                               pRedBC & "|" & _
+'''''                               pICMS & "|" & _
+'''''                               vICMS & "|" & _
+'''''                               modBCST & "|" & _
+'''''                               pMVAST & "|" & _
+'''''                               pRedBCST & "|" & _
+'''''                               vBCST & "|" & _
+'''''                               pICMSST & "|" & _
+'''''                               vICMSST & "|" & _
+'''''                               pCredSN & "|" & _
+'''''                               vCredICMSSN
+         
+                     Print #1, Space(10) & "<ICMSSN900>"
+                     Print #1, Space(12) & FTAG("orig", rsNFsItens!orig)
+                     Print #1, Space(12) & FTAG("CSOSN", rsNFsItens!CSOSN)
+                     Print #1, Space(12) & FTAG("vBCSTRet", rsNFsItens!vBCSTRet)
+                     Print #1, Space(12) & FTAG("vICMSSTRet", rsNFsItens!vICMSSTRet)
+                     Print #1, Space(10) & "</ICMSSN900>"
+         End Select
+         
+         Print #1, Space(8) & "</ICMS>"
+      
+      End If
+      
+'''''      Print #1, "I|" & _
+'''''                sCodigoProduto & "|" & _
+'''''                sCodigoBarras & "|" & _
+'''''                sDescricaoProduto & "|" & _
+'''''                sCodigoNCM & "|" & _
+'''''                sEXTIPI & "|" & _
+'''''                sCFOP & "|" & _
+'''''                sUnidComercial & "|" & _
+'''''                sQuantidadeComercial & "|" & _
+'''''                sVlUnitarioComercial & "|" & _
+'''''                sVlTotalBruto & "|" & _
+'''''                sCodigoBarrasTrib & "|" & _
+'''''                sUnidTrib & "|" & _
+'''''                sQuantidadeTrib & "|" & _
+'''''                sVlUnitarioTrib & "|" & _
+'''''                sVlFrete & "|" & _
+'''''                sVlSeguro & "|" & _
+'''''                sVlDesconto & "|" & _
+'''''                sVlOutros & "|" & _
+'''''                sIndTot & "|" & _
+'''''                sxPed & "|" & _
+'''''                snItemPed
+
+      
+'''''    ' Totalizar
+'''''      If rsNaturezasOperacao!Descricao <> "COMPLEMENTO DE VALOR" Then
+'''''         If rsNFCeItens!ISS <= 0 Then
+'''''            dValorTotalBC = dValorTotalBC + dCalculoBC
+'''''            dValorTotalICMS = dValorTotalICMS + ((dCalculoBC * rsNFCeItens!ICMS) / 100)
+'''''         End If
+'''''         dValorTotalProdutos = dValorTotalProdutos + (rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario)
+'''''         dValorTotalDesconto = dValorTotalDesconto + (((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) * rsNFCeItens!Desconto) / 100)
+'''''         dValorTotalFrete = dValorTotalFrete + rsNFCeItens!ValorFrete
+'''''         dValorTotalNFCe = dValorTotalNFCe + (rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) + rsNFCeItens!ValorFrete
+'''''      Else
+'''''         If rsNFCeItens!ISS <= 0 Then
+'''''            dValorTotalBC = dValorTotalBC + dCalculoBC
+'''''            dValorTotalICMS = dValorTotalICMS + ((dCalculoBC * rsNFCeItens!ICMS) / 100)
+'''''         End If
+'''''         dValorTotalProdutos = 0
+'''''         dValorTotalDesconto = 0
+'''''         dValorTotalFrete = dValorTotalFrete + rsNFCeItens!ValorFrete
+'''''         dValorTotalNFCe = 0
+'''''      End If
+      
+      ' Grupo U
+      If rsNFsItens!AliqISS > 0 Then
+'''''         Dim vAliqISS As String
+'''''         Dim vISSQN As String
+'''''         Dim cMunFG As String
+'''''         Dim cListServ As String
+'''''         Dim vDeducao As String
+'''''         Dim vOutro As String
+'''''         Dim vDescIncond As String
+'''''         Dim vDescCond As String
+'''''         Dim vISSRet As String
+'''''         Dim indISS As String
+'''''         Dim cServico As String
+'''''         Dim cMun As String
+'''''         Dim cPais As String
+'''''         Dim nProcesso As String
+'''''         Dim indIncentivo As String
+'''''
+'''''         vBC = Substitui(Format(rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario, "#######0.00"), ",", ".")
+'''''         vAliqISS = Substitui(Format(rsNFCeItens!ISS, "#######0.00"), ",", ".")
+'''''         vISSQN = Substitui(Format((((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) * rsNFCeItens!ISS) / 100), "#######0.00"), ",", ".")
+'''''         Set rsTemp = cnSistema.Execute("Select * From Municipios WHERE idMunicipio=" & rsEmpresa!idMunicipio)
+'''''         cMunFG = RemoveCaracteres(rsTemp!Codigo)
+'''''         cListServ = "09.01"
+'''''         vDeducao = ""
+'''''         vOutro = ""
+'''''         vDescIncond = ""
+'''''         vDescCond = ""
+'''''         vISSRet = ""
+'''''         indISS = "1"
+'''''         cServico = ""
+'''''         cMun = ""
+'''''         cPais = ""
+'''''         nProcesso = ""
+'''''         indIncentivo = "2"
+'''''
+'''''         dValorTotalBaseISS = dValorTotalBaseISS + (rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario)
+'''''         dValorTotalISS = dValorTotalISS + (((rsNFCeItens!quantidade * rsNFCeItens!ValorUnitario) * rsNFCeItens!ISS) / 100)
+         
+         Print #1, Space(10) & "<ISSQN>"
+         Print #1, Space(12) & FTAG("vBC", rsNFsItens!vBCISS)
+         Print #1, Space(12) & FTAG("vAliq", rsNFsItens!vAliqISS)
+         Print #1, Space(12) & FTAG("vISSQN", rsNFsItens!vISSQN)
+         Print #1, Space(12) & FTAG("cMunFG", rsNFsItens!cMunFGISS)
+         Print #1, Space(12) & FTAG("cListServ", rsNFsItens!cListServISS)
+         Print #1, Space(12) & FTAG("indISS", rsNFsItens!indISS)
+         Print #1, Space(12) & FTAG("indIncentivo", rsNFsItens!indIncentivoISS)
+         Print #1, Space(10) & "</ISSQN>"
+         
+'''         Print #1, "U|" & _
+'''                   vBC & "|" & _
+'''                   vAliqISS & "|" & _
+'''                   vISSQN & "|" & _
+'''                   cMunFG & "|" & _
+'''                   cListServ & "|" & _
+'''                   vDeducao & "|" & _
+'''                   vOutro & "|" & _
+'''                   vDescIncond & "|" & _
+'''                   vDescCond & "|" & _
+'''                   vISSRet & "|" & _
+'''                   indISS & "|" & _
+'''                   cServico & "|" & _
+'''                   cMun & "|" & _
+'''                   cPais & "|" & _
+'''                   nProcesso & "|" & _
+'''                   indIncentivo
+      End If
+
+    ' PIS
+      Print #1, Space(8) & "<PIS>"
+      Print #1, Space(10) & "<PISOutr>"
+      Print #1, Space(12) & FTAG("CST", "99")
+      Print #1, Space(12) & FTAG("vBC", "0.00")
+      Print #1, Space(12) & FTAG("pPIS", "0.00")
+      Print #1, Space(12) & FTAG("vPIS", "0.00")
+      Print #1, Space(10) & "</PISOutr>"
+      Print #1, Space(8) & "</PIS>"
+
+'      Print #1, "Q"
+'      Print #1, "Q05|" & _
+'                "99|" & _
+'                "0.00"
+'      Print #1, "Q07|" & _
+'                "0.00|" & _
+'                "0.00"
+        
+    ' Cofins
+      Print #1, Space(8) & "<COFINS>"
+      Print #1, Space(10) & "<COFINSOutr>"
+      Print #1, Space(12) & FTAG("CST", "99")
+      Print #1, Space(12) & FTAG("vBC", "0.00")
+      Print #1, Space(12) & FTAG("pCOFINS", "0.00")
+      Print #1, Space(12) & FTAG("vCOFINS", "0.00")
+      Print #1, Space(10) & "</COFINSOutr>"
+      Print #1, Space(8) & "</COFINS>"
+    
+    
+'      Print #1, "S"
+'      Print #1, "S05|" & _
+'                "99|" & _
+'                "0.00"
+'      Print #1, "S07|" & _
+'                "0.00|" & _
+'                "0.00"
+
+      Print #1, Space(6) & "</imposto>"
+
+      Print #1, Space(4) & "</det>"
+
+      Contador = Contador + 1
+'''''      rsNFCeItens.MoveNext
+      rsNFsItens.MoveNext
+   Loop
+
+   ' Limpar Recordsets
+'''''   Set rsNFCe = Nothing
+'''''   Set rsNFCeItens = Nothing
+   Set rsProdutos = Nothing
+   Set rsUnidades = Nothing
+   Set rsSituacoesTributarias = Nothing
+   Set rsTributos = Nothing
+   
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoH"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoH")
+End Function
+
+Public Function NotasNFsGrupoW(iNumero As Long)
+On Error GoTo Erro
+'''''Dim rsNFCe As New ADODB.Recordset
+
+   ' Totais
+''''''   Print #1, "W"
+'''''
+'''''   Dim sValorTotalBC As String
+'''''   Dim sValorTotalICMS As String
+'''''   Dim sValorTotalBaseDeson As String
+'''''   Dim sValorTotalBCST As String
+'''''   Dim sValorTotalICMSST As String
+'''''   Dim sValorTotalProdutos As String
+'''''   Dim sValorTotalFrete As String
+'''''   Dim sValorTotalSeguro As String
+'''''   Dim sValorTotalDesconto As String
+'''''   Dim sValorTotalII As String
+'''''   Dim sValorTotalIPI As String
+'''''   Dim sValorTotalPIS As String
+'''''   Dim sValorTotalCofins As String
+'''''   Dim sValorTotalOutro As String
+'''''   Dim sValorTotalNFe As String
+'''''   Dim sRNTC As String
+'''''   Dim sValorTotalTrib As String
+'''''''   Dim sValorTotalNFCe As String
+'''''''   Dim sValorTotalICMSNFCe As String
+'''''
+'''''   Dim sValorTotalBaseISS As String
+'''''   Dim sValorTotalISS As String
+   
+'''''   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & iNumero)
+'''''
+'''''   sValorTotalBC = Substitui(Format(dValorTotalBC, "#########0.00"), ",", ".")
+'''''   sValorTotalICMS = Substitui(Format(dValorTotalICMS, "#########0.00"), ",", ".")
+'''''   sValorTotalBaseDeson = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalBCST = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalICMSST = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalProdutos = Substitui(Format((dValorTotalProdutos - dValorTotalBaseISS), "#########0.00"), ",", ".")
+'''''   sValorTotalFrete = Substitui(Format(dValorTotalFrete, "#########0.00"), ",", ".")
+'''''   sValorTotalSeguro = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalDesconto = Substitui(Format(dValorTotalDesconto, "#########0.00"), ",", ".")
+'''''   sValorTotalII = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalIPI = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalPIS = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalCofins = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalOutro = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''   sValorTotalNFe = Substitui(Format(dValorTotalNFCe, "#########0.00"), ",", ".")
+'''''   sValorTotalTrib = Substitui(Format(0, "#########0.00"), ",", ".")
+'''''
+'''''   sValorTotalNFCe = Substitui(Format(dValorTotalNFCe, "#########0.00"), ",", ".")
+'''''   sValorTotalICMSNFCe = Substitui(Format(dValorTotalICMS, "#########0.00"), ",", ".")
+'''''
+'''''   sValorTotalBaseISS = Substitui(Format(dValorTotalBaseISS, "#########0.00"), ",", ".")
+'''''   sValorTotalISS = Substitui(Format(dValorTotalISS, "#########0.00"), ",", ".")
+   
+'''''   ' Totalização do ICMS
+'''''   Print #1, Space(4) & "<total>"
+'''''   Print #1, Space(6) & "<ICMSTot>"
+'''''
+'''''   Print #1, Space(8) & FTAG("vBC", sValorTotalBC)
+'''''   Print #1, Space(8) & FTAG("vICMS", sValorTotalICMS)
+'''''   Print #1, Space(8) & FTAG("vICMSDeson", sValorTotalBaseDeson)
+'''''''''   Print #1, Space(8) & FTAG("vFCP", "0.00")
+'''''   Print #1, Space(8) & FTAG("vFCPUFDest", "0.00")
+'''''   Print #1, Space(8) & FTAG("vBCST", sValorTotalBCST)
+'''''   Print #1, Space(8) & FTAG("vST", sValorTotalICMSST)
+'''''''''   Print #1, Space(8) & FTAG("vFCPST", "0.00")
+'''''''''   Print #1, Space(8) & FTAG("vFCPSTRet", "0.00")
+'''''   Print #1, Space(8) & FTAG("vProd", sValorTotalProdutos)
+'''''   Print #1, Space(8) & FTAG("vFrete", sValorTotalFrete)
+'''''   Print #1, Space(8) & FTAG("vSeg", sValorTotalSeguro)
+'''''   Print #1, Space(8) & FTAG("vDesc", sValorTotalDesconto)
+'''''   Print #1, Space(8) & FTAG("vII", sValorTotalII)
+'''''   Print #1, Space(8) & FTAG("vIPI", sValorTotalIPI)
+'''''''''   Print #1, Space(8) & FTAG("vIPIDevol", "0.00")
+'''''   Print #1, Space(8) & FTAG("vPIS", sValorTotalPIS)
+'''''   Print #1, Space(8) & FTAG("vCOFINS", sValorTotalCofins)
+'''''   Print #1, Space(8) & FTAG("vOutro", sValorTotalOutro)
+'''''   Print #1, Space(8) & FTAG("vNF", sValorTotalNFe)
+'''''''''   Print #1, Space(8) & FTAG("vTotTrib", sValorTotalTrib)
+   
+'''''   Print #1, "W02|" & _
+'''''             sValorTotalBC & "|" & _
+'''''             sValorTotalICMS & "|" & _
+'''''             sValorTotalBaseDeson & "|" & _
+'''''             sValorTotalBCST & "|" & _
+'''''             sValorTotalICMSST & "|" & _
+'''''             sValorTotalProdutos & "|" & _
+'''''             sValorTotalFrete & "|" & _
+'''''             sValorTotalSeguro & "|" & _
+'''''             sValorTotalDesconto & "|" & _
+'''''             sValorTotalII & "|" & _
+'''''             sValorTotalIPI & "|" & _
+'''''             sValorTotalPIS & "|" & _
+'''''             sValorTotalCofins & "|" & _
+'''''             sValorTotalOutro & "|" & _
+'''''             sValorTotalNFe & "|" & _
+'''''             sValorTotalTrib
+'''''
+'''''   Print #1, Space(6) & "</ICMSTot>"
+   
+   
+'      .Fields.Append "nNF", adVarChar, 9                     ' Número da Nota
+'      .Fields.Append "vBC", adDouble, 19                     ' Base de Calculo
+'      .Fields.Append "vICMS", adDouble, 19                   ' Valor do ICMS
+'      .Fields.Append "vICMSDeson", adDouble, 19              ' Valor do ICMS Deson
+'      .Fields.Append "vFCPUFDest", adDouble, 19              ' vFCPUFDest
+'      .Fields.Append "vICMSUFDest", adDouble, 19             ' vICMSUFDest
+'      .Fields.Append "vICMSUFRemet", adDouble, 19            ' vICMSUFRemet
+'      .Fields.Append "vFCP", adDouble, 19                    ' vFCP
+'      .Fields.Append "vBCST", adDouble, 19                   ' Base de Calculo Substituicao
+'      .Fields.Append "vST", adDouble, 19                     ' Valor da Substituicao
+'      .Fields.Append "vFCPST", adDouble, 19                  ' vFCPST
+'      .Fields.Append "vFCPSTRet", adDouble, 19               ' vFCPSTRet
+'      .Fields.Append "vProd", adDouble, 19                   ' Valor Total dos Produtos
+'      .Fields.Append "vFrete", adDouble, 19                  ' Valor Total do Frete
+'      .Fields.Append "vSeg", adDouble, 19                    ' Valor Total do Seguro
+'      .Fields.Append "vDesc", adDouble, 19                   ' Valor Total do Desconto
+'      .Fields.Append "vII", adDouble, 19                     ' Valor Total Isento
+'      .Fields.Append "vIPI", adDouble, 19                    ' Valor Total IPI
+'      .Fields.Append "vIPIDevol", adDouble, 19               ' Valor Total IPI Devolvido
+'      .Fields.Append "vPIS", adDouble, 19                    ' Valor Total PIS
+'      .Fields.Append "vCOFINS", adDouble, 19                 ' Valor Total COFINS
+'      .Fields.Append "vOutro", adDouble, 19                  ' Valor Total Outros
+'      .Fields.Append "vNF", adDouble, 19                     ' Valor Total NF
+'      .Fields.Append "vTotTrib", adDouble, 19                ' Valor Total Tributos
+   
+   
+   ' Totalização do ICMS
+   Print #1, Space(4) & "<total>"
+   Print #1, Space(6) & "<ICMSTot>"
+
+   Print #1, Space(8) & FTAG("vBC", rsNFsTotaisICMS!vBC)
+   Print #1, Space(8) & FTAG("vICMS", rsNFsTotaisICMS!vICMS)
+   Print #1, Space(8) & FTAG("vICMSDeson", rsNFsTotaisICMS!vICMSDeson)
+''''   Print #1, Space(8) & FTAG("vFCP", rsNFsTotaisICMS!vFCP)
+   Print #1, Space(8) & FTAG("vFCPUFDest", rsNFsTotaisICMS!vFCPUFDest)
+   Print #1, Space(8) & FTAG("vBCST", rsNFsTotaisICMS!vBCST)
+   Print #1, Space(8) & FTAG("vST", rsNFsTotaisICMS!vST)
+''''   Print #1, Space(8) & FTAG("vFCPST", rsNFsTotaisICMS!vFCPST)
+''''   Print #1, Space(8) & FTAG("vFCPSTRet", rsNFsTotaisICMS!vFCPSTRet)
+   Print #1, Space(8) & FTAG("vProd", rsNFsTotaisICMS!vProd)
+   Print #1, Space(8) & FTAG("vFrete", rsNFsTotaisICMS!vFrete)
+   Print #1, Space(8) & FTAG("vSeg", rsNFsTotaisICMS!vSeg)
+   Print #1, Space(8) & FTAG("vDesc", rsNFsTotaisICMS!vDesc)
+   Print #1, Space(8) & FTAG("vII", rsNFsTotaisICMS!vII)
+   Print #1, Space(8) & FTAG("vIPI", rsNFsTotaisICMS!vIPI)
+''''   Print #1, Space(8) & FTAG("vIPIDevol", rsNFsTotaisICMS!vIPIDevol)
+   Print #1, Space(8) & FTAG("vPIS", rsNFsTotaisICMS!vPIS)
+   Print #1, Space(8) & FTAG("vCOFINS", rsNFsTotaisICMS!vCOFINS)
+   Print #1, Space(8) & FTAG("vOutro", rsNFsTotaisICMS!vOutro)
+   Print #1, Space(8) & FTAG("vNF", rsNFsTotaisICMS!vNF)
+''''   Print #1, Space(8) & FTAG("vTotTrib", rsNFsTotaisICMS!vTotTrib)
+   
+   Print #1, Space(6) & "</ICMSTot>"
+   
+   ' Totalização do ISS
+   If dValorTotalBaseISS > 0 Then
+'''''      Print #1, Space(6) & "<ISSQNtot>"
+'''''      Print #1, Space(8) & FTAG("vServ", sValorTotalBaseISS)
+'''''      Print #1, Space(8) & FTAG("vBC", sValorTotalBaseISS)
+'''''      Print #1, Space(8) & FTAG("vISS", sValorTotalISS)
+'''''      Print #1, Space(8) & FTAG("dCompet", Format(rsNFCe!DataEmissao, "YYYY-MM-DD"))
+'''''      Print #1, Space(8) & FTAG("cRegTrib", "1")
+      
+      Print #1, Space(6) & "<ISSQNtot>"
+      Print #1, Space(8) & FTAG("vServ", rsNFsTotaisISS!vServ)
+      Print #1, Space(8) & FTAG("vBC", rsNFsTotaisISS!vBC)
+      Print #1, Space(8) & FTAG("vISS", rsNFsTotaisISS!vISS)
+      Print #1, Space(8) & FTAG("dCompet", rsNFsTotaisISS!dCompet)
+      Print #1, Space(8) & FTAG("cRegTrib", rsNFsTotaisISS!cRegTrib)
+      Print #1, Space(6) & "</ISSQNtot>"
+   End If
+   
+   Print #1, Space(4) & "</total>"
+
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoW"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoW")
+End Function
+
+Public Function NotasNFsGrupoX(iNumero As Long)
+On Error GoTo Erro
+'''''Dim rsNFCe As New ADODB.Recordset
+
+''''''   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & Val(lvwNFCes.ListItems(lvwNFCes.SelectedItem.Index)))
+''''''   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & NFCeNumero)
+'''''   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & iNumero)
+
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'    ' Frete
+'      Print #1, "X|" & _
+'                rsNFe!FreteConta
+'
+'      Set rsTransportadores = cnSistema.Execute("SELECT * FROM Transportadores WHERE idTransportador = " & rsNFe!idTransportador)
+'      If Not rsTransportadores.EOF Then
+'         Print #1, "X03|" & _
+'                   RemoveAcentos(rsTransportadores!Nome) & "|" & _
+'                   IIf(rsTransportadores!IE_CI <> "ISENTO", Trim(RemoveCaracteres(rsTransportadores!IE_CI)), "ISENTO") & "|" & _
+'                   RemoveAcentos(rsTransportadores!Endereco) & " " & RemoveAcentos(rsTransportadores!Bairro) & "|" & _
+'                   RemoveAcentos(rsTransportadores!Cidade) & "|" & _
+'                   rsTransportadores!UF
+'
+'         If Len(Trim(RemoveCaracteres(rsTransportadores!CNPJ_CPF))) = 14 Then
+'            Print #1, "X04|" & _
+'                      RemoveCaracteres(rsTransportadores!CNPJ_CPF)
+'         Else
+'            Print #1, "X05|" & _
+'                      RemoveCaracteres(rsTransportadores!CNPJ_CPF)
+'         End If
+'      End If
+'
+''''   Removido Versão 4.0
+''''      sRNTC = ""
+''''      If Trim(UCase(Substitui(rsNFe!PlacaVeiculo, "-", ""))) <> "" Then
+''''         Print #1, "X18|" & _
+''''                   UCase(Substitui(rsNFe!PlacaVeiculo, "-", "")) & "|" & _
+''''                   UCase(rsNFe!UFCaminhao) & "|" & _
+''''                   sRNTC
+''''      End If
+'
+'    ' Informaçoes dos volumnes
+'      If Trim(rsNFe!VolumeQuantidade) <> "" Or Trim(rsNFe!VolumeEspecie) <> "" Or Trim(rsNFe!VolumeMarca) <> "" Or Trim(rsNFe!VolumeNumero) <> "" Or rsNFe!VolumePesoBruto > 0 Or rsNFe!VolumePesoLiquido > 0 Then
+'         Print #1, "X26|" & _
+'                   IIf(Trim(rsNFe!VolumeQuantidade) <> "", Trim(RemoveAcentos(rsNFe!VolumeQuantidade)), "0") & "|" & _
+'                   IIf(Trim(rsNFe!VolumeEspecie) <> "", Trim(RemoveAcentos(rsNFe!VolumeEspecie)), "") & "|" & _
+'                   IIf(Trim(rsNFe!VolumeMarca) <> "", Trim(RemoveAcentos(rsNFe!VolumeMarca)), "") & "|" & _
+'                   IIf(Trim(rsNFe!VolumeNumero) <> "", Trim(RemoveAcentos(rsNFe!VolumeNumero)), "") & "|" & _
+'                   Substitui(Format(rsNFe!VolumePesoLiquido, "##########0.000"), ",", ".") & "|" & _
+'                   Substitui(Format(rsNFe!VolumePesoBruto, "##########0.000"), ",", ".")
+'      End If
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+
+'''-<transp>
+'''   <modFrete>0</modFrete>
+'''   -<transporta>
+'''      <CNPJ>21306842000146</CNPJ>
+'''      <xNome>FR QUEIROZ</xNome>
+'''      <IE>106247620</IE>
+'''      <xEnder>RUA AGUA MARINHA</xEnder>
+'''      <xMun>Luziania</xMun>
+'''      <UF>GO</UF>
+'''   </transporta>
+'''   -<veicTransp>
+'''      <placa>KCW6660</placa>
+'''      <UF>GO</UF>
+'''   </veicTransp>
+'''</transp>
+
+
+
+   Print #1, Space(4) & "<transp>"
+'''''   Print #1, Space(6) & FTAG("modFrete", rsNFCe!FreteConta)
+   Print #1, Space(6) & FTAG("modFrete", rsNFsTransportes!modFrete)
+   
+'   If Trim(rsTransportadores!CNPJ) <> "" Then
+'''''   If Not IsNull(rsTransportadores!CNPJ) Then
+   If Not IsNull(rsNFsTransportes!CNPJ) And Trim(rsNFsTransportes!CNPJ) <> "" Then
+      Print #1, Space(6) & "<transporta>"
+      Print #1, Space(8) & FTAG("CNPJ", rsNFsTransportes!CNPJ)
+      Print #1, Space(8) & FTAG("xNome", rsNFsTransportes!xNome)
+      Print #1, Space(8) & FTAG("IE", rsNFsTransportes!IE)
+      Print #1, Space(8) & FTAG("xEnder", rsNFsTransportes!xEnder)
+      Print #1, Space(8) & FTAG("xMun", rsNFsTransportes!xMun)
+      Print #1, Space(8) & FTAG("UF", rsNFsTransportes!UF)
+      Print #1, Space(6) & "</transporta>"
+   End If
+   
+'   If Trim(rsTransportadores!PlacaVeiculo) <> "" Then
+'''''   If Not IsNull(rsTransportadores!PlacaVeiculo) Then
+   If Not IsNull(rsNFsTransportes!Placa) And Trim(rsNFsTransportes!Placa) <> "" Then
+      Print #1, Space(6) & "<veicTransp>"
+      Print #1, Space(8) & FTAG("placa", rsNFsTransportes!Placa)
+      Print #1, Space(8) & FTAG("UF", rsNFsTransportes!UFVeiculo)
+      Print #1, Space(6) & "</veicTransp>"
+   End If
+   
+   Print #1, Space(4) & "</transp>"
+     
+   ' Limpar Recordsets
+'''''   Set rsNFCe = Nothing
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoX"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoX")
+End Function
+
+Public Function NotasNFsGrupoY(iNumero As Long)
+On Error GoTo Erro
+
+Dim rsNFCe As New ADODB.Recordset
+Dim rsFormasPagamento As New ADODB.Recordset
+Dim rsNFCePagamentos As New ADODB.Recordset
+Dim sFormaPagamento As String
+
+'   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & NFCeNumero)
+   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & iNumero)
+   Set rsFormasPagamento = cnSistema.Execute("Select * From FormasPagamento WHERE idFormaPagamento=" & rsNFCe!idFormaPagamento)
+   Set rsNFCePagamentos = cnSistema.Execute("Select * From NFCePagamentos WHERE idNFCe=" & rsNFCe!idNFCe)
+
+'' Incluir na natureza de operação o tipo de pagamento
+'' Pesquisar em:
+''                https://nstecnologia.com.br/blog/formas-de-pagamento-da-nfe-4-0/
+''                https://nstecnologia.com.br/blog/rejeicao-871/
+
+   Do While Not rsNFCePagamentos.EOF
+      '01=Dinheiro
+      '02=Cheque
+      '03=Cartão de Crédito
+      '04=Cartão de Débito
+      '05=Crédito Loja
+      '10=Vale Alimentação
+      '11=Vale Refeição
+      '12=Vale Presente
+      '13=Vale Combustível
+      '90=Sem pagamento (apenas para NFe)
+      '99=Outros
+
+      Print #1, Space(4) & "<pag>"
+      Print #1, Space(8) & FTAG("tPag", StrZero(rsNFCePagamentos!idFormaPagamento, 2))
+      Print #1, Space(8) & FTAG("vPag", Substitui(Format(rsNFCePagamentos!Valor, "#########0.00"), ",", "."))
+      Print #1, Space(4) & "</pag>"
+   
+      rsNFCePagamentos.MoveNext
+   Loop
+   
+''''   If Not rsFormasPagamento.EOF Then
+''''      If rsFormasPagamento!TipoPagamento <= 1 Then
+''''         sFormaPagamento = "00"
+''''      Else
+''''         sFormaPagamento = "01"
+''''      End If
+''''   Else
+''''      sFormaPagamento = "00"
+''''   End If
+
+   '01=Dinheiro
+   '02=Cheque
+   '03=Cartão de Crédito
+   '04=Cartão de Débito
+   '05=Crédito Loja
+   '10=Vale Alimentação
+   '11=Vale Refeição
+   '12=Vale Presente
+   '13=Vale Combustível
+   '99=Outros
+
+''''   sFormaPagamento = "01"
+''''
+''''   Print #1, Space(4) & "<pag>"
+''''''   Print #1, Space(6) & "<detPag>"
+''''   Print #1, Space(8) & FTAG("tPag", sFormaPagamento)
+''''   Print #1, Space(8) & FTAG("vPag", Substitui(Format(dValorTotalNFCe, "#########0.00"), ",", "."))
+''''''   Print #1, Space(6) & "</detPag>"
+''''   Print #1, Space(4) & "</pag>"
+   
+   ' Limpar Recordsets
+   Set rsNFCe = Nothing
+   Set rsFormasPagamento = Nothing
+   Set rsNFCePagamentos = Nothing
+'   Set sFormaPagamento = Nothing
+   
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoY"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoY")
+End Function
+
+Public Function NotasNFsGrupoZ(iNumero As Long)
+On Error GoTo Erro
+
+Dim rsNFCe As New ADODB.Recordset
+
+   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & iNumero)
+'   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & NFCeNumero)
+'   Set rsNFCe = cnSistema.Execute("Select * From NFCe WHERE Numero=" & Val(lvwNFCes.ListItems(lvwNFCes.SelectedItem.Index)))
+
+   ' Informaçoes Adicionais
+   Dim sInfFISCO As String
+   Dim sINFCempresa As String
+   
+   sInfFISCO = RemoveAcentos(rsNFCe!InformacoesCorpo)
+   sINFCempresa = RemoveAcentos(rsNFCe!DadosAdicionais) & " - Valor Aprox Tributos R$ " & Format(dValorTributos, "#####,##0.00") & " Fonte: IBPT"
+
+   Print #1, Space(4) & "<infAdic>"
+   Print #1, Space(6) & FTAG("infCpl", sInfFISCO & " " & sINFCempresa)
+   Print #1, Space(4) & "</infAdic>"
+     
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoZ"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".NotasNFsGrupoZ")
+End Function
+
+Private Function FTAG(sTAG As String, ByRef sConteudo As String) As String
+On Error GoTo Erro
+   
+   FTAG = "<" & sTAG & ">" & Trim(sConteudo) & "</" & sTAG & ">" '& vbLf
+   
+   Exit Function
+Erro:
+'   MsgBox "Erro " & Err & ". " & Err.Description & " - " & TypeName(Me) & ".FTAG"
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FTAG")
+End Function
+
+Private Function FTAGPrincipal(sNome As String) As String
+On Error GoTo Erro
+   
+   If sNome = "Versao" Then
+      FTAGPrincipal = "<?xml version=" & Chr(34) & "1.0" & Chr(34) & " encoding=" & Chr(34) & "UTF-8" & Chr(34) & "?>"
+   ElseIf sNome = "EnvioEvento" Then
+      FTAGPrincipal = "<envEvento xmlns=" & Chr(34) & "http://www.portalfiscal.inf.br/nfe" & Chr(34) & " versao=" & Chr(34) & "1.00" & Chr(34) & ">"
+   ElseIf sNome = "Evento" Then
+      FTAGPrincipal = "<evento xmlns=" & Chr(34) & "http://www.portalfiscal.inf.br/nfe" & Chr(34) & " versao=" & Chr(34) & "1.00" & Chr(34) & ">"
+   End If
+   
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FTAGPrincipal")
+End Function
+
+Public Function FConsultarCadastro(ByVal sCNPJ As String, ByVal sUF As String) As String
+On Error GoTo Erro
+Dim sVerArquivo As String
+
+   ' Envia solicitação de consulta
+   Open I_UnidadeNFe & "NF-e\Notas\Notas.TXT" For Output As #1
+   
+   Print #1, FTAGPrincipal("Versao")
+   Print #1, "<ConsCad xmlns=" & Chr(34) & "http://www.portalfiscal.inf.br/nfe" & Chr(34) & " versao=" & Chr(34) & "2.00" & Chr(34) & ">"
+   Print #1, "<infCons>"
+   Print #1, "<xServ>CONS-CAD</xServ> "
+   Print #1, "<UF>" & sUF & "</UF>"
+   Print #1, "<CNPJ>" & sCNPJ & "</CNPJ>"
+   Print #1, "</infCons>"
+   Print #1, "</ConsCad>"
+   Close #1
+   
+   FileCopy I_UnidadeNFe & "NF-e\Notas\Notas.TXT", I_UnidadeNFe & "NF-e\" & I_EmpresaNF & "\Envio\" & sCNPJ & "-cons-cad.xml"
+   Kill I_UnidadeNFe & "NF-e\Notas\Notas.TXT"
+
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me) & ".FConsultarCadastro")
+End Function

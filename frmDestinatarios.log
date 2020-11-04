@@ -1,0 +1,8 @@
+Line 215: Class MSComctlLib.ListView of control lvwDados was not a loaded control class.
+Line 245: Class MSMask.MaskEdBox of control mskNascimento was not a loaded control class.
+Line 258: Class MSMask.MaskEdBox of control mskPrazoPagamento was not a loaded control class.
+Line 271: Class MSMask.MaskEdBox of control mskLimiteCredito was not a loaded control class.
+Line 358: Class MSMask.MaskEdBox of control mskJuros was not a loaded control class.
+Line 370: Class MSMask.MaskEdBox of control mskDiaPagamento was not a loaded control class.
+Line 439: Class MSComctlLib.ImageList of control imgToolBar was not a loaded control class.
+Line 477: Class MSComctlLib.Toolbar of control Toolbar was not a loaded control class.

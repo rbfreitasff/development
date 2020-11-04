@@ -1,0 +1,15 @@
+Line 20: Class MSComDlg.CommonDialog of control cdlgImprimirNota was not a loaded control class.
+Line 27: Class MSComctlLib.ImageList of control ImageList1 was not a loaded control class.
+Line 89: Class TabDlg.SSTab of control SSTab1 was not a loaded control class.
+Line 188: Class MSComctlLib.ListView of control lvwPercurso was not a loaded control class.
+Line 295: Class MSComctlLib.ListView of control lvwLocalCarregamento was not a loaded control class.
+Line 397: Class MSComctlLib.ListView of control lvwNFes was not a loaded control class.
+Line 426: Class MSMask.MaskEdBox of control mskValorTotalProdutos was not a loaded control class.
+Line 439: Class MSMask.MaskEdBox of control mskValorTotalNota was not a loaded control class.
+Line 544: Class MSComctlLib.ListView of control lvwCondutores was not a loaded control class.
+Line 565: Class MSMask.MaskEdBox of control mskCPFCondutor was not a loaded control class.
+Line 666: Class MSMask.MaskEdBox of control mskPlacaVeiculo was not a loaded control class.
+Line 816: Class MSMask.MaskEdBox of control mskNumero was not a loaded control class.
+Line 829: Class MSMask.MaskEdBox of control mskDataEmissao was not a loaded control class.
+Line 842: Class MSMask.MaskEdBox of control mskDataViagem was not a loaded control class.
+Line 985: Class MSComctlLib.Toolbar of control Toolbar was not a loaded control class.

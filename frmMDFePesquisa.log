@@ -1,0 +1,4 @@
+Line 49: Class MSComctlLib.ListView of control lvwDados was not a loaded control class.
+Line 93: Class MSMask.MaskEdBox of control mskData1 was not a loaded control class.
+Line 106: Class MSMask.MaskEdBox of control mskData2 was not a loaded control class.
+Line 119: Class MSMask.MaskEdBox of control mskCFOP was not a loaded control class.

@@ -1,0 +1,13 @@
+[Banco de Dados]
+xCaminho=P:\NFC-e
+xCaminho=C:\Proj\GerenciadorNFs\Dados
+xCaminho=D:\Projetos\Comercial\DadosModelo\CasaGrande
+Caminho=D:\Projetos\Comercial\DadosModelo\Essencial
+Sintegra=D:\Projetos\Comercial\DadosModelo\CasaGrande
+Servidor SQL=.
+xServidor SQL=192.168.10.11,51101
+xCatalog=Hospedagens
+Catalog=Gestao
+xCatalog=LinkExplorer
+SGBD=ACCESS
+xSGBD=SQLSERVER

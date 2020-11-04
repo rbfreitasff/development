@@ -1,0 +1,86 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+  Persistable = 0  'NotPersistable
+  DataBindingBehavior = 0  'vbNone
+  DataSourceBehavior  = 0  'vbNone
+  MTSTransactionMode  = 0  'NotAnMTSObject
+END
+Attribute VB_Name = "DBConnection"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = True
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = False
+''Option Explicit
+''Dim cnDB As New ADODB.Connection
+''
+''Public Function Execute(strComandoSQL As String) As Recordset
+''   On Error Resume Next
+''   cnDB.ConnectionString = "Provider=SQLOLEDB.1;Persist Security Info=False;User ID=" & idLogin & ";Password=" & idSenha & ";Initial Catalog=" & idCatalog & ";Data Source=" & idBancoDados
+''   cnDB.Open
+''   Set Execute = cnDB.Execute(strComandoSQL)
+''   Set cnDB = Nothing
+''   On Error GoTo 0
+''End Function
+''
+''
+
+Option Explicit
+Dim cnDB As New ADODB.Connection
+Dim strBD As String
+
+Public Function Execute(strComandoSQL As String) As Recordset
+   On Error GoTo Erro
+ConnectDatabase:
+
+   Dim MD5Chave As New MD5
+
+   ' Conection String
+   ' SQL Server
+   If I_SGBD = "SQLSERVER" Then
+      idBancoDados = LerArquivoINI("Banco de Dados", "Servidor SQL", App.Path & "\System.ini")
+      idCatalog = LerArquivoINI("Banco de Dados", "Catalog", App.Path & "\System.ini")
+      idLogin = Mid(Replace(Decode(LerArquivoINI(MD5Chave.DigestStrToHexStr("Sistema"), MD5Chave.DigestStrToHexStr("Comando03"), App.Path & "\SGC.SYS")), Chr(0), ""), 3, 1) & Mid(Replace(Decode(LerArquivoINI(MD5Chave.DigestStrToHexStr("Sistema"), MD5Chave.DigestStrToHexStr("Comando03"), App.Path & "\SGC.SYS")), Chr(0), ""), 5, 1)
+      idSenha = Replace(Decode(LerArquivoINI(MD5Chave.DigestStrToHexStr("Sistema"), MD5Chave.DigestStrToHexStr("Comando04"), App.Path & "\SGC.SYS")), Chr(0), "")
+      
+'      If idCatalog = "LinkExplorer" Then
+'         idLogin = idCatalog
+'         idSenha = "##" & idCatalog & "001##"
+'      End If
+      
+      cnDB.ConnectionString = "Provider=SQLOLEDB.1;Persist Security Info=False;User ID=" & idLogin & ";Password=" & idSenha & ";Initial Catalog=" & idCatalog & ";Data Source=" & idBancoDados
+   
+   ' Access
+   ElseIf I_SGBD = "ACCESS" Then
+      BancoDeDados = LerArquivoINI("Banco de Dados", "Caminho", CaminhoINI & "\System.ini")
+      cnDB.Provider = "Microsoft.Jet.OLEDB.4.0"
+      
+      cnDB.Properties("Data Source") = BancoDeDados & "\SGC.MDB"
+      cnDB.CursorLocation = adUseClient
+   End If
+   
+   cnDB.Open
+   Set Execute = cnDB.Execute(strComandoSQL)
+   Set cnDB = Nothing
+   Exit Function
+   Resume
+Erro:
+   If Err.Number = -2147467259 Or Err.Number = -2147217843 Then
+      strBD = InputBox("Digite o IP do Servidor de Banco de Dados", "Banco de Dados")
+      If (strBD <> "") Then
+         GravaArquivoINI "Banco de Dados", "Servidor SQL", strBD, App.Path & "\System.ini"
+         idBancoDados = strBD
+         GoTo ConnectDatabase
+      Else
+         End
+      End If
+   ElseIf Err.Number = -2147217873 Then
+      MsgBox "Não é possível Excluir este Registro" & Chr(13) & "Existe lançamentos relacionados com este Registro", vbInformation + vbOKOnly, "Excluir"
+      Set cnDB = Nothing
+      Exit Function
+   Else
+      MsgBox "Entre em contato com o suporte:" & Chr(13) & Err.Description, vbExclamation, "Banco de Dados"
+      End
+   End If
+End Function
+

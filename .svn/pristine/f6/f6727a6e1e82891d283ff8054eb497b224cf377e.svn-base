@@ -1,0 +1,328 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+  Persistable = 0  'NotPersistable
+  DataBindingBehavior = 0  'vbNone
+  DataSourceBehavior  = 0  'vbNone
+  MTSTransactionMode  = 0  'NotAnMTSObject
+END
+Attribute VB_Name = "PreencherRS"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = True
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = False
+'---------------------------------------------------------------------------------------
+' Procedure : PreencherRS
+' Author    : Robinson.Fernandes
+' Date      : 04/06/2018
+' Purpose   :
+'---------------------------------------------------------------------------------------
+
+Public Function CriarEstruturaNFs()
+
+   Set rsNFs = Nothing
+   Set rsNFsItens = Nothing
+   Set rsNFsPagamentos = Nothing
+   Set rsNFsTotaisICMS = Nothing
+   Set rsNFsTotaisISS = Nothing
+   Set rsNFsEmitentes = Nothing
+   Set rsNFsDestinatarios = Nothing
+   Set rsNFsDados = Nothing
+
+   ' Criar Estrutura NFs
+   '------------------------------------------------------------------------------------------
+    With rsNFs
+      .Fields.Append "cUF", adVarChar, 2                     ' UF
+      .Fields.Append "cNF", adVarChar, 2                     ' Chave da NF
+      .Fields.Append "natOp", adVarChar, 30                  ' Natureza Operação
+      .Fields.Append "mod", adVarChar, 2                     ' Modelo (55 - NFe / 65 - NFCe)
+      .Fields.Append "serie", adVarChar, 1                   ' Serie (1)
+      .Fields.Append "nNF", adVarChar, 9                     ' Número da Nota
+      .Fields.Append "dhEmi", adVarChar, 25                  ' Data da Emissão [Gerar Padrão Horário de Verão]
+      .Fields.Append "dhSaiEnt", adVarChar, 25               ' Data da Saida [Gerar Padrão Horário de Verão]
+      .Fields.Append "tpNF", adVarChar, 1                    ' Tipo de NF (0 - Entrada / 1 - Saida)
+      .Fields.Append "idDest", adVarChar, 1                  ' Tipo de Destinatário (1. Operacao Interna / 2. Operacao Interestadual)
+      .Fields.Append "cMunFG", adVarChar, 7                  ' Codigo do Municipio
+      .Fields.Append "tpImp", adVarChar, 1                   ' Tipo de Sistemas (0 - Utilizando Software próprio)
+      .Fields.Append "tpEmis", adVarChar, 1                  ' Tipo de Emissao (1)
+      .Fields.Append "cDV", adVarChar, 1                     ' Digito Verificador da Chave de Acesso
+      .Fields.Append "tpAmb", adVarChar, 1                   ' Tipo de Ambiente (1 - Produção ou 2 - Homologação)
+      .Fields.Append "finNFe", adVarChar, 1                  ' Finalidade (1 - NFe Normal / 2 - Complementar / 3 - Ajuste)
+      .Fields.Append "indFinal", adVarChar, 1                ' Finalidade (1 - NFe Normal / 2 - Complementar / 3 - Ajuste)
+      .Fields.Append "indPres", adVarChar, 1                 ' Indicador de Presença (1 - Presencial)
+      .Fields.Append "procEmi", adVarChar, 1                 ' Processo de emissão  (0 - Utilizando Software próprio)
+      .Fields.Append "verProc", adVarChar, 15                ' Versão do Aplicativo
+      
+      .Fields.Refresh
+      .Open
+    End With
+      
+   ' Criar Estrutura Emitentes
+   '------------------------------------------------------------------------------------------
+    With rsEmitentes
+      .Fields.Append "CNPJ", adVarChar, 20                   ' CNPJ
+      .Fields.Append "CPF", adVarChar, 20                    ' CPF
+      .Fields.Append "xNome", adVarChar, 50                  ' Nome
+      .Fields.Append "xFant", adVarChar, 50                  ' Nome Fantasia
+      .Fields.Append "xLgr", adVarChar, 50                   ' Logradouro
+      .Fields.Append "nro", adVarChar, 15                    ' Numero
+      .Fields.Append "xBairro", adVarChar, 50                ' Bairro
+      .Fields.Append "cMun", adVarChar, 15                   ' Codigo Municipio
+      .Fields.Append "xMun", adVarChar, 50                   ' Nome Municipio
+      .Fields.Append "UF", adVarChar, 2                      ' UF
+      .Fields.Append "CEP", adVarChar, 10                    ' CEP
+      .Fields.Append "cPais", adVarChar, 10                  ' Codigo do Pais
+      .Fields.Append "xPais", adVarChar, 50                  ' Nome do Pais
+      .Fields.Append "fone", adVarChar, 20                   ' Telefone
+      .Fields.Append "IE", adVarChar, 20                     ' IE
+      .Fields.Append "CNAE", adVarChar, 20                   ' CNAE
+      .Fields.Append "IM", adVarChar, 20                     ' IM
+      .Fields.Append "CRT", adVarChar, 20                    ' CRT
+      
+      .Fields.Refresh
+      .Open
+    End With
+    
+    
+    
+      Print #1, Space(4) & "<dest>"
+      If Len(Trim(sDCNPJ)) > 11 Then
+         Print #1, Space(6) & FTAG("CNPJ", sDCNPJ)
+         If Trim(sDRazaoSocial) <> "" Then
+            Print #1, Space(6) & FTAG("xNome", sDRazaoSocial)
+         End If
+      Else
+         Print #1, Space(6) & FTAG("CPF", sDCNPJ)
+         If Trim(sDRazaoSocial) <> "" Then
+            Print #1, Space(6) & FTAG("xNome", sDRazaoSocial)
+         End If
+      End If
+
+   ' Criar Estrutura Destinatário
+   '------------------------------------------------------------------------------------------
+    With rsEmitentes
+      .Fields.Append "CNPJ", adVarChar, 20                   ' CNPJ
+      .Fields.Append "CPF", adVarChar, 20                    ' CPF
+      .Fields.Append "xNome", adVarChar, 50                  ' Nome
+      .Fields.Append "xLgr", adVarChar, 50                   ' Logradouro
+      .Fields.Append "nro", adVarChar, 15                    ' Numero
+      .Fields.Append "xBairro", adVarChar, 50                ' Bairro
+      .Fields.Append "cMun", adVarChar, 15                   ' Codigo Municipio
+      .Fields.Append "xMun", adVarChar, 50                   ' Nome Municipio
+      .Fields.Append "UF", adVarChar, 2                      ' UF
+      .Fields.Append "CEP", adVarChar, 10                    ' CEP
+      .Fields.Append "cPais", adVarChar, 10                  ' Codigo do Pais
+      .Fields.Append "xPais", adVarChar, 50                  ' Nome do Pais
+      .Fields.Append "fone", adVarChar, 20                   ' Telefone
+      .Fields.Append "IE", adVarChar, 20                     ' IE
+      
+      ' Totais
+      
+      .Fields.Refresh
+      .Open
+    End With
+
+   ' Criar Estrutura Totais
+   '------------------------------------------------------------------------------------------
+    With rsEmitentes
+      .Fields.Append "CNPJ", adVarChar, 20                   ' CNPJ
+      .Fields.Append "CPF", adVarChar, 20                    ' CPF
+      .Fields.Append "xNome", adVarChar, 50                  ' Nome
+      .Fields.Append "xLgr", adVarChar, 50                   ' Logradouro
+      .Fields.Append "nro", adVarChar, 15                    ' Numero
+      .Fields.Append "xBairro", adVarChar, 50                ' Bairro
+      .Fields.Append "cMun", adVarChar, 15                   ' Codigo Municipio
+      .Fields.Append "xMun", adVarChar, 50                   ' Nome Municipio
+      .Fields.Append "UF", adVarChar, 2                      ' UF
+      .Fields.Append "CEP", adVarChar, 10                    ' CEP
+      .Fields.Append "cPais", adVarChar, 10                  ' Codigo do Pais
+      .Fields.Append "xPais", adVarChar, 50                  ' Nome do Pais
+      .Fields.Append "fone", adVarChar, 20                   ' Telefone
+      .Fields.Append "IE", adVarChar, 20                     ' IE
+      
+      .Fields.Refresh
+      .Open
+    End With
+
+' Total ICMS
+'-------------
+
+   Print #1, Space(8) & FTAG("vBC", sValorTotalBC)
+   Print #1, Space(8) & FTAG("vICMS", sValorTotalICMS)
+   Print #1, Space(8) & FTAG("vICMSDeson", sValorTotalBaseDeson)
+''''   Print #1, Space(8) & FTAG("vFCP", "0.00")
+   Print #1, Space(8) & FTAG("vFCPUFDest", "0.00")
+   Print #1, Space(8) & FTAG("vBCST", sValorTotalBCST)
+   Print #1, Space(8) & FTAG("vST", sValorTotalICMSST)
+''''   Print #1, Space(8) & FTAG("vFCPST", "0.00")
+''''   Print #1, Space(8) & FTAG("vFCPSTRet", "0.00")
+   Print #1, Space(8) & FTAG("vProd", sValorTotalProdutos)
+   Print #1, Space(8) & FTAG("vFrete", sValorTotalFrete)
+   Print #1, Space(8) & FTAG("vSeg", sValorTotalSeguro)
+   Print #1, Space(8) & FTAG("vDesc", sValorTotalDesconto)
+   Print #1, Space(8) & FTAG("vII", sValorTotalII)
+   Print #1, Space(8) & FTAG("vIPI", sValorTotalIPI)
+''''   Print #1, Space(8) & FTAG("vIPIDevol", "0.00")
+   Print #1, Space(8) & FTAG("vPIS", sValorTotalPIS)
+   Print #1, Space(8) & FTAG("vCOFINS", sValorTotalCofins)
+   Print #1, Space(8) & FTAG("vOutro", sValorTotalOutro)
+   Print #1, Space(8) & FTAG("vNF", sValorTotalNFe)
+''''   Print #1, Space(8) & FTAG("vTotTrib", sValorTotalTrib)
+
+
+' Total ISS
+'-------------
+
+   ' Totalização do ISS
+   If dValorTotalBaseISS > 0 Then
+      Print #1, Space(6) & "<ISSQNtot>"
+      Print #1, Space(8) & FTAG("vServ", sValorTotalBaseISS)
+      Print #1, Space(8) & FTAG("vBC", sValorTotalBaseISS)
+      Print #1, Space(8) & FTAG("vISS", sValorTotalISS)
+      Print #1, Space(8) & FTAG("dCompet", Format(rsNFCe!DataEmissao, "YYYY-MM-DD"))
+      Print #1, Space(8) & FTAG("cRegTrib", "1")
+      Print #1, Space(6) & "</ISSQNtot>"
+   End If
+
+'------------------------------------------------------------------------------------------
+
+End Function
+
+Public Function CriaEstruturaPlanoPagamento(ByVal dtDataLiberacao As Date, _
+                                            ByVal iPeriodicidadeCarencia As Integer, _
+                                            ByVal iQtdCarencia As Integer, _
+                                            ByVal iPeriodicidadeAmortizacao As Integer, _
+                                            ByVal iQtdAmortizacao As Integer, _
+                                            ByVal bEncExigiveisCarencia As Boolean, _
+                                            ByVal cValorSaldoDevedor As Currency, _
+                                            ByVal dblPercTaxaJuros As Double, _
+                                            ByVal dblSpreadBancoob As Double) As ADODB.Recordset
+On Error GoTo l_Error
+
+
+    Dim rsPlanoPagamento As New ADODB.Recordset
+    Dim iCt              As Integer
+    Dim dtDataInicio     As Date
+    Dim dtDataFim        As Date
+    Dim dtDataVencimento As Date
+    Dim dtUltimoCalculo  As Date
+    Dim CValorAmortizacao   As Currency
+    Dim CValorSaldoRestante As Currency
+    Dim dblPropSpreadBB     As Double
+            
+    With rsPlanoPagamento
+    
+        .Fields.Append "DataLiberacao", adDate, 4
+        .Fields.Append "NumParcela", adSmallInt, 5
+        .Fields.Append "CodTipoParcela", adTinyInt, 3
+        .Fields.Append "TipoParcela", adVarChar, 20
+        .Fields.Append "QtdDiasParcela", adInteger
+        .Fields.Append "DataVencParcela", adDate, 4
+        .Fields.Append "PercTaxaJuros", adDouble, 8
+        .Fields.Append "ValorParcela", adCurrency, 19
+        .Fields.Append "CodSituacaoParcela", adTinyInt, 3
+        .Fields.Append "ValorJurosParcela", adCurrency, 19
+        .Fields.Append "ValorAmortizacaoParcela", adCurrency, 19
+        .Fields.Append "SaldoDevedorParaCalculo", adCurrency, 19
+        .Fields.Refresh
+        .Open
+        
+    End With
+       
+    dtUltimoCalculo = PrimeiroDiaProximoMes(dtDataLiberacao)
+        
+    dblPropSpreadBB = 1 - dblSpreadBancoob / dblPercTaxaJuros
+
+    iCt = 1
+    
+    dtDataInicio = dtDataLiberacao
+    
+    If bEncExigiveisCarencia Then
+        
+        dtDataVencimento = RetornaDataVencimento(iPeriodicidadeCarencia, dtUltimoCalculo, 1)
+        
+        dtDataFim = RetornaDataVencimento(iPeriodicidadeCarencia, dtDataVencimento, iQtdCarencia - 1)
+        
+        Do While dtDataVencimento <= dtDataFim
+            
+            rsPlanoPagamento.AddNew
+            rsPlanoPagamento!NumParcela = iCt
+            rsPlanoPagamento!DataVencParcela = dtDataVencimento
+            rsPlanoPagamento!ValorJurosParcela = RetornoCalculoJurosFCO(dtDataInicio, dtDataVencimento, dblPercTaxaJuros, cValorSaldoDevedor, dblPropSpreadBB)
+            rsPlanoPagamento!ValorAmortizacaoParcela = 0#
+            rsPlanoPagamento!ValorParcela = rsPlanoPagamento!ValorJurosParcela
+            rsPlanoPagamento!SaldoDevedorParaCalculo = cValorSaldoDevedor
+            rsPlanoPagamento!CodSituacaoParcela = COD_SIT_PARC_NORMAL
+            rsPlanoPagamento!QtdDiasParcela = DateDiff("d", dtDataInicio, dtDataVencimento)
+            rsPlanoPagamento!CodTipoParcela = COD_TIPO_PARCELA_CARENCIA
+            rsPlanoPagamento!TipoParcela = "Carência"
+            rsPlanoPagamento!PercTaxaJuros = dblPercTaxaJuros
+            rsPlanoPagamento!DataLiberacao = dtDataLiberacao
+            
+            rsPlanoPagamento.Update
+            
+            dtDataInicio = dtDataVencimento
+            
+            If dtDataVencimento = dtDataFim Then
+                dtDataVencimento = RetornaDataVencimento(iPeriodicidadeAmortizacao, dtDataInicio, 1)
+            Else
+                dtDataVencimento = RetornaDataVencimento(iPeriodicidadeCarencia, dtDataInicio, 1)
+            End If
+            
+            iCt = iCt + 1
+        Loop
+    Else
+        dtDataFim = RetornaDataVencimento(iPeriodicidadeCarencia, dtUltimoCalculo, iQtdCarencia)
+        dtDataVencimento = RetornaDataVencimento(iPeriodicidadeAmortizacao, dtDataFim, 1)
+    End If
+    
+    CValorAmortizacao = Round(cValorSaldoDevedor / iQtdAmortizacao, 2)
+    CValorSaldoRestante = cValorSaldoDevedor
+    
+    dtDataFim = RetornaDataVencimento(iPeriodicidadeAmortizacao, dtDataFim, iQtdAmortizacao)
+    
+    Do While dtDataVencimento <= dtDataFim
+            
+        rsPlanoPagamento.AddNew
+        rsPlanoPagamento!NumParcela = iCt
+        rsPlanoPagamento!DataVencParcela = dtDataVencimento
+        rsPlanoPagamento!ValorJurosParcela = RetornoCalculoJurosFCO(dtDataInicio, dtDataVencimento, dblPercTaxaJuros, CValorSaldoRestante, dblPropSpreadBB)
+        rsPlanoPagamento!ValorAmortizacaoParcela = CValorAmortizacao
+        rsPlanoPagamento!ValorParcela = rsPlanoPagamento!ValorAmortizacaoParcela + rsPlanoPagamento!ValorJurosParcela
+        rsPlanoPagamento!SaldoDevedorParaCalculo = CValorSaldoRestante
+        rsPlanoPagamento!CodSituacaoParcela = COD_SIT_PARC_NORMAL
+        rsPlanoPagamento!QtdDiasParcela = DateDiff("d", dtDataInicio, dtDataVencimento)
+        rsPlanoPagamento!CodTipoParcela = COD_TIPO_PARCELA_ENCARGO_PRINCIPAL
+        rsPlanoPagamento!TipoParcela = "Princpal + Juros"
+        rsPlanoPagamento!PercTaxaJuros = dblPercTaxaJuros
+        rsPlanoPagamento!DataLiberacao = dtDataLiberacao
+        
+        rsPlanoPagamento.Update
+        
+        dtDataInicio = dtDataVencimento
+        
+        dtDataVencimento = RetornaDataVencimento(iPeriodicidadeAmortizacao, dtDataInicio, 1)
+        
+        CValorSaldoRestante = CValorSaldoRestante - CValorAmortizacao
+        
+        If dtDataVencimento = dtDataFim Then
+            CValorAmortizacao = cValorSaldoDevedor - Round(CValorAmortizacao * (iQtdAmortizacao - 1), 2)
+        End If
+        
+        iCt = iCt + 1
+        
+    Loop
+    
+    rsPlanoPagamento.MoveFirst
+    
+    Set CriaEstruturaPlanoPagamento = rsPlanoPagamento
+    
+    Exit Function
+Resume
+l_Error:
+    MsgBox "Error " & Err.Number & " (" & Err.Description & ") in procedure CriaEstruturaPlanoPagamento of Módulo de classe CMontaQuery"
+End Function
+
+
+
+

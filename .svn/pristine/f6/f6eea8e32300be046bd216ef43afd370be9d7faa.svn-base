@@ -1,0 +1,208 @@
+VERSION 5.00
+Begin VB.Form frmEventos 
+   BorderStyle     =   1  'Fixed Single
+   Caption         =   "Eventos"
+   ClientHeight    =   5970
+   ClientLeft      =   45
+   ClientTop       =   375
+   ClientWidth     =   8595
+   LinkTopic       =   "Form1"
+   MaxButton       =   0   'False
+   MinButton       =   0   'False
+   ScaleHeight     =   5970
+   ScaleWidth      =   8595
+   StartUpPosition =   2  'CenterScreen
+   Begin VB.CommandButton cmdCancelar 
+      Caption         =   "Cancelar"
+      Height          =   375
+      Left            =   7380
+      TabIndex        =   9
+      Top             =   5520
+      Width           =   1155
+   End
+   Begin VB.CommandButton cmdConfirmar 
+      Caption         =   "Confirmar"
+      Height          =   375
+      Left            =   6120
+      TabIndex        =   8
+      Top             =   5520
+      Width           =   1155
+   End
+   Begin VB.Frame fraJustificativas 
+      Caption         =   "Justificativa"
+      Height          =   1995
+      Left            =   120
+      TabIndex        =   6
+      Top             =   3480
+      Width           =   8415
+      Begin VB.TextBox txtJustificativa 
+         Height          =   1575
+         Left            =   120
+         MultiLine       =   -1  'True
+         ScrollBars      =   2  'Vertical
+         TabIndex        =   7
+         Top             =   300
+         Width           =   8175
+      End
+   End
+   Begin VB.Frame fraInformacoes 
+      Caption         =   "Informações"
+      Height          =   3315
+      Left            =   120
+      TabIndex        =   0
+      Top             =   120
+      Width           =   8415
+      Begin VB.TextBox txtInformacoes 
+         Enabled         =   0   'False
+         Height          =   1875
+         Left            =   120
+         MultiLine       =   -1  'True
+         ScrollBars      =   2  'Vertical
+         TabIndex        =   10
+         Top             =   900
+         Width           =   8175
+      End
+      Begin VB.TextBox txtChaveNFe 
+         Enabled         =   0   'False
+         Height          =   315
+         Left            =   1380
+         TabIndex        =   4
+         Top             =   540
+         Width           =   6915
+      End
+      Begin VB.TextBox txtNota 
+         Height          =   315
+         Left            =   120
+         TabIndex        =   2
+         Top             =   540
+         Width           =   1215
+      End
+      Begin VB.Label lblInformacoesPrazo 
+         BorderStyle     =   1  'Fixed Single
+         BeginProperty Font 
+            Name            =   "MS Sans Serif"
+            Size            =   8.25
+            Charset         =   0
+            Weight          =   700
+            Underline       =   0   'False
+            Italic          =   0   'False
+            Strikethrough   =   0   'False
+         EndProperty
+         ForeColor       =   &H000000FF&
+         Height          =   315
+         Left            =   120
+         TabIndex        =   5
+         Top             =   2820
+         Width           =   8175
+      End
+      Begin VB.Label lblChave 
+         Caption         =   "Chave"
+         Height          =   195
+         Left            =   1380
+         TabIndex        =   3
+         Top             =   300
+         Width           =   555
+      End
+      Begin VB.Label lblNota 
+         Caption         =   "Nota"
+         Height          =   195
+         Left            =   120
+         TabIndex        =   1
+         Top             =   300
+         Width           =   435
+      End
+   End
+End
+Attribute VB_Name = "frmEventos"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = False
+Dim rsNFs As New ADODB.Recordset
+Dim sEvento As String
+
+Private Sub Form_Load()
+
+   txtNota.Enabled = True
+
+   sEvento = frmGerenciarNF.lblStatusEvento.Tag
+   If sEvento = "CN" Then
+      Set rsNFs = cnSistema.Execute("Select * From NFe WHERE Numero=" & Val(frmGerenciarNF.cmdCancelarNota.Tag))
+      If Not rsNFs.EOF And Not IsNull(rsNFs!ChaveNFe) Then txtChaveNFe.text = FFormataChaveNF(rsNFs!ChaveNFe)
+      
+      txtNota.Enabled = False
+      txtNota.text = frmGerenciarNF.cmdCancelarNota.Tag
+      
+      txtInformacoes.text = "O cancelamento da nota deve ser efetuado em até 24 horas após a data e hora da aprovação"
+      
+   ElseIf sEvento = "CC" Then
+      Set rsNFs = cnSistema.Execute("Select * From NFe WHERE Numero=" & Val(frmGerenciarNF.cmdNFeCartaCorrecao.Tag))
+      If Not rsNFs.EOF And Not IsNull(rsNFs!ChaveNFe) Then txtChaveNFe.text = FFormataChaveNF(rsNFs!ChaveNFe)
+   
+      txtNota.Enabled = False
+      txtNota.text = frmGerenciarNF.cmdNFeCartaCorrecao.Tag
+   
+      txtInformacoes.text = "A Carta de Correção e disciplinada pelo paragrafo 1º-A do art. 7º do Convênio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularização de erro ocorrido na emissão de documento fiscal, desde que o erro nao esteja relacionado com: " & vbCrLf & _
+                            "I - as variáveis que determinam o valor do imposto tais como: base de cálculo, alíquota, diferença de preço, quantidade, valor da operação ou da prestação; " & vbCrLf & _
+                            "II - a correção de dados cadastrais que implique mudançaa do remetente ou do destinatário; " & vbCrLf & _
+                            "III - a data de emissão ou de saida."
+   End If
+   
+End Sub
+
+Private Sub cmdConfirmar_Click()
+   
+   If sEvento = "IN" Then
+      Call InutilizarNumeracao
+   ElseIf sEvento = "CN" Then
+      Call CancelarNota
+   ElseIf sEvento = "CC" Then
+      Call CartaCorrecao
+   End If
+   
+End Sub
+
+Private Sub cmdCancelar_Click()
+   Unload Me
+End Sub
+
+Private Sub InutilizarNumeracao()
+Dim oNFCe400 As New CNF400
+Dim strMensagem As String
+
+   If MsgBox("Confirma inutilizar a Nota Nº " & txtNota.text, vbYesNo + vbQuestion, "Confirmação") = vbYes Then
+      strMensagem = oNFCe400.FInutilizarNumero(txtNota.text, txtJustificativa.text)
+      MsgBox strMensagem, vbExclamation + vbOKOnly, "Inutilização"
+   End If
+
+End Sub
+
+Private Sub CancelarNota()
+Dim oNFCe400 As New CNF400
+Dim strMensagem As String
+
+   If MsgBox("Confirma cancelamento da Nota Nº " & txtNota.text, vbYesNo + vbQuestion, "Confirmação") = vbYes Then
+      If Trim(txtJustificativa.text) <> "" And Len(txtJustificativa.text) >= 15 Then
+         strMensagem = oNFCe400.FCancelarNota(txtNota.text, txtJustificativa.text)
+         MsgBox strMensagem, vbExclamation + vbOKOnly, "Cancelamento"
+      Else
+         MsgBox "A justificativa é obrigatória e precisa ter ao menos 15 caracteres", vbExclamation + vbOKOnly, "Campos Obrigatórios"
+      End If
+   End If
+
+End Sub
+
+Private Sub CartaCorrecao()
+Dim oNFCe400 As New CNF400
+Dim strMensagem As String
+
+   If MsgBox("Confirma correção da Nota Nº " & txtNota.text, vbYesNo + vbQuestion, "Confirmação") = vbYes Then
+      If Trim(txtJustificativa.text) <> "" And Len(txtJustificativa.text) >= 15 Then
+         strMensagem = oNFCe400.FCartaCorrecao(txtNota.text, txtJustificativa.text)
+         MsgBox strMensagem, vbExclamation + vbOKOnly, "Carta de correção"
+      Else
+         MsgBox "A justificativa é obrigatória", vbExclamation + vbOKOnly, "Campos Obrigatórios"
+      End If
+   End If
+
+End Sub

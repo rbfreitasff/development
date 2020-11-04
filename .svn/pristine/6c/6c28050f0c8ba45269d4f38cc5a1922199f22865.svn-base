@@ -1,0 +1,150 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+  Persistable = 0  'NotPersistable
+  DataBindingBehavior = 0  'vbNone
+  DataSourceBehavior  = 0  'vbNone
+  MTSTransactionMode  = 0  'NotAnMTSObject
+END
+Attribute VB_Name = "CImportarLE"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = True
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = False
+'''----------------------------------------------------------------------------------------------
+''' Classe Gerar NFs
+''' Autor: Robinson
+''' Data da Criação: 08/08/2019
+'''----------------------------------------------------------------------------------------------
+''
+''Public Function InserirNF()
+''Dim vGravacao As String
+''Dim rsNFe As New ADODB.Recordset
+''Dim rsClientes As New ADODB.Recordset
+''Dim rsSaidasItens As New ADODB.Recordset
+''
+''Dim iIdProduto As Integer
+''Dim dDataEmissao As Date
+''Dim dQuantidade As Double
+''Dim dDesconto As Double
+''Dim dValorUnitario As Double
+''Dim dICMS As Double
+''Dim dISS As Double
+''Dim dBaseReduzida As Double
+''Dim sDescricaoComplementar As String
+''Dim iIdUnidade As Integer
+''Dim iIdSituacaoTributaria As Integer
+''Dim sDiscriminacaoProduto As String
+''Dim dIPI As Double
+''Dim dBaseReduzidaIPI As Double
+''Dim sClassificacaoFiscal As String
+''Dim dValorFrete As Double
+''Dim sCFOP As String
+''
+''Dim iNumero As Long
+''Dim iCliente As Integer
+''Dim iCFOP As Integer
+''
+''   Set rsSaidas = cnSistema.Execute("Select * From Saidas WHERE GN = True")
+''   While Not rsSaidas.EOF
+''      vGravacao = ""
+''
+''      Set rsNFe = cnSistema.Execute("Select TOP 1 * From NFe ORDER BY idNFe DESC")
+''      If Not rsNFe.BOF Or Not rsNFe.EOF Then
+''         iNumero = rsNFe!Numero + 1
+''      Else
+''         iNumero = 1
+''      End If
+''
+''      Set rsClientes = cnSistema.Execute("Select * From Clientes WHERE idCliente = " & rsSaidas!idCliente)
+''      If rsClientes!UF = "GO" Then
+''         iCFOP = 251   ' 5102 - Buscar o id Na Base
+''      Else
+''         iCFOP = 381   ' 6102 - Buscar o id Na Base
+''      End If
+''
+''      vGravacao = ""
+''      vGravacao = vGravacao & "Numero = " & iNumero & ", "
+''      vGravacao = vGravacao & "Cupom = " & 0 & ", "
+''      vGravacao = vGravacao & "idCliente = " & iCliente & ", "
+''      vGravacao = vGravacao & "idNaturezaOperacao = " & 1 & ", "  ' Venda de Mercadorias e serviços
+''      vGravacao = vGravacao & "idCFOP = " & iCFOP & ", "          ' 5102 / 6102 - Venda de mercadoria dentro ou fora do estado
+''      vGravacao = vGravacao & "DadosAdicionais = '', "
+''      vGravacao = vGravacao & "DataEmissao = '" & Date & "', "
+''      vGravacao = vGravacao & "DataCaixa = '" & Date & "', "
+''      vGravacao = vGravacao & "DataVencimento = '" & Date & "', "
+''      vGravacao = vGravacao & "Hora = '" & Time & "', "
+''      vGravacao = vGravacao & "BaseCalculoICMS = " & 0 & ", "
+''      vGravacao = vGravacao & "ValorICMS = " & 0 & ", "
+''      vGravacao = vGravacao & "ValorFrete = " & 0 & ", "
+''      vGravacao = vGravacao & "ValorTotalProdutos = " & 0 & ", "
+''      vGravacao = vGravacao & "BaseICMSSubstituicao = " & 0 & ", "
+''      vGravacao = vGravacao & "ValorICMSSubstituicao = " & 0 & ", "
+''      vGravacao = vGravacao & "OutrasDespesas = " & 0 & ", "
+''      vGravacao = vGravacao & "ValorTotalNota = " & 0 & ", "
+''      vGravacao = vGravacao & "idTransportador = " & 0 & ", "
+''      vGravacao = vGravacao & "FreteConta = " & 9 & ", "          ' Não se aplica
+''      vGravacao = vGravacao & "PlacaVeiculo = '   -    ', "
+''      vGravacao = vGravacao & "UFCaminhao = '', "
+''      vGravacao = vGravacao & "VolumeQuantidade = '', "
+''      vGravacao = vGravacao & "VolumeMarca = '', "
+''      vGravacao = vGravacao & "VolumeEspecie = '', "
+''      vGravacao = vGravacao & "VolumeNumero = '', "
+''      vGravacao = vGravacao & "VolumePesoBruto = 0, "
+''      vGravacao = vGravacao & "VolumePesoLiquido = 0, "
+''      vGravacao = vGravacao & "InformacoesCorpo = '" & LerArquivoINI("Notas Fiscais", "InformacoesCorpo", CaminhoINI & "\System.ini") & "', "
+''      vGravacao = vGravacao & "idFormaPagamento = " & 1 & ", "    ' Avista
+''      vGravacao = vGravacao & "DescontoGeral = " & 0 & ", "
+''      vGravacao = vGravacao & "Bonificacao = " & 0 & ", "
+''      vGravacao = vGravacao & "Documento = '', "
+''      vGravacao = vGravacao & "Observacao = '', "
+''      vGravacao = vGravacao & "GeradaNFe = False, "
+''      vGravacao = vGravacao & "Situacao = " & 0 & ", "
+''      vGravacao = vGravacao & "TentativaEmissao = " & 1 & ", "
+''      vGravacao = vGravacao & "NumeroNFCeComplementar = 0, "
+''      vGravacao = vGravacao & "ChaveAcessoNFCeComplementar = '', "
+''      vGravacao = vGravacao & "ChaveAcessoDevolucao = '' "
+''
+''      ' Inserir
+''      cnSistema.Execute "Insert Into NFe (Numero) Values (" & iNumero & ")"
+''      cnSistema.Execute "Update NFe SET " & vGravacao & " Where Numero = " & iNumero
+''
+''      ' Inserir Itens
+''      Set rsNFe = cnSistema.Execute("Select * From NFe WHERE Numero = " & iNumero)
+''      If Not rsNFe.EOF Then
+''         Set rsSaidasItens = cnSistema.Execute("Select * From SaidasItens WHERE idSaida = " & rsSaidas!idSaida)
+''         While Not rsSaidasItens.EOF
+''            iIdNFe = rsNFe!idNFe
+''            iIdProduto = rsSaidasItens!idProduto
+''            dDataEmissao = Date
+''            dQuantidade = rsSaidasItens!Quantidade
+''            dDesconto = 0
+''            dValorUnitario = rsSaidasItens!ValorUnitario
+''            dBaseReduzida = 0
+''            sDescricaoComplementar = ""
+''            iIdUnidade = 1                                                 ' Unidades
+''            sDiscriminacaoProduto = ""
+''            dIPI = 0
+''            dBaseReduzidaIPI = 0
+''            sClassificacaoFiscal = ""
+''            dValorFrete = 0
+''            sCFOP = Iff(rsClientes!UF = "GO", "5.102", "6.102")            ' Vendas
+''            iIdSituacaoTributaria = 12                                     ' Tributado sem permissão de crédito
+''            dICMS = 0
+''            dISS = 0
+''
+''            cnSistema.Execute "Insert Into NFeItens (idNFe,idProduto,Data,Quantidade,Desconto,ValorUnitario,ICMS,ISS,BaseReduzida,DescricaoComplementar,idUnidade,idSituacaoTributaria,DiscriminacaoProduto,IPI,BaseReduzidaIPI,ClassificacaoFiscal,ValorFrete,CFOP) " & _
+''                              "Values (" & iIdNFe & "," & iIdProduto & ",'" & dDataEmissao & "','" & sQuantidade & "','" & 0 & "'," & sValorUnitario & ",'" & _
+''                              dICMS & "','" & dISS & "','" & dBaseReduzida & "','" & SQLCheck(sDescricaoComplementar) & "'," & iIdUnidade & "," & iIdSituacaoTributaria & ",'" & _
+''                              SQLCheck(sDiscriminacaoProduto) & "','" & dIPI & "','" & dBaseReduzidaIPI & "','" & SQLCheck(sClassificacaoFiscal) & "','" & dValorFrete & "','" & sCFOP & "')"
+''
+''            Set rsDados = Nothing
+''
+''            rsSaidasItens.MoveNext
+''         Loop
+''      End If
+''
+''      rsSaidas.MoveNext
+''   Loop
+''
+''End Function

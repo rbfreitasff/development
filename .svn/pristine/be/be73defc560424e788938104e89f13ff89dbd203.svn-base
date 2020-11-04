@@ -1,0 +1,313 @@
+Attribute VB_Name = "modNFs"
+Option Explicit
+Dim ItemList As ListItem
+Dim ProcuraItem As ListItem
+
+' Variávies Públicas já definidas
+'''''Public sEmpresaNF As String
+Public I_EmpresaNF As String
+
+Public I_ModeloNF As String                     ' Modelo da NF 55-NF-e / 65-NFC-e
+Public I_TabelasNF As String                    ' Tabelas da NF 55-NFe / 65-NFCe
+Public I_PastaUNINFe As String                   ' Pasta de Locação dos arquivos UNINFe
+
+Public I_Empresa_CNPJ_CPF As String             ' CNPJ da Empresa/Emitente
+Public I_EmpresaMunicipio As String             ' Nome do municipio do Emitente
+Public I_EmpresaCodigoMunicipio As String       ' Codigo do municipio do Emitente
+Public I_EmpresaUF As String                    ' Nome da UF do Emitente
+Public I_EmpresaCodigoUF As String              ' Codigo da UF do Emitente
+Public I_AmbienteNF As String                   ' Produção ou Homologação
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Public I_UnidadeNFe As String                   ' Em que disco vai buscar a pasta
+Public I_CaminhoXML_NFCe As String              ' Em qual pasta estão os XMLs
+Public I_CaminhoXML_NFe As String
+Public sCPFDestinatario As String
+
+Public sChaveNFe As String
+Public I_NFCeNumero As String
+
+Public dValorTributos As Double
+Public dValorTotalBC As Double
+Public dValorTotalICMS As Double
+Public dValorTotalBaseISS As Double
+Public dValorTotalISS As Double
+Public dValorTotalBCST As Double
+Public dValorTotalICMSST As Double
+Public dValorTotalProdutos As Double
+Public dValorTotalFrete As Double
+Public dValorTotalSeguro As Double
+Public dValorTotalDesconto As Double
+Public dValorTotalII As Double
+Public dValorTotalIPI As Double
+Public dValorTotalPIS As Double
+Public dValorTotalCofins As Double
+Public dValorTotalOutro As Double
+Public dValorTotalNFCe As Double
+Public sICMSAproveitamento As String
+Public sValorTotalNFCe As String
+Public sValorTotalICMSNFCe As String
+Public sDataEmissao As String
+
+Public I_FormatoQuantidade As String   ' Quantidade de Casas Decimais para Quantidade
+Public I_FormatoValor As String        ' Quantidade de Casas Decimais para Valores
+
+' Criar RecordSets Público para transportar os dados para todos os módulos do Sistema
+'------------------------------------------------------------------------------------
+Public rsNFs As New ADODB.Recordset
+Public rsNFsItens As New ADODB.Recordset
+Public rsNFsPagamentos As New ADODB.Recordset
+Public rsNFsTotaisICMS As New ADODB.Recordset
+Public rsNFsTotaisISS As New ADODB.Recordset
+Public rsNFsEmitentes As New ADODB.Recordset
+Public rsNFsDestinatarios As New ADODB.Recordset
+Public rsNFsTransportes As New ADODB.Recordset
+Public rsNFsDados As New ADODB.Recordset
+
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Public ARQUIVO_NFE_NOTAS As String
+
+Public CAMINHO_NFE_ENVIO As String
+Public CAMINHO_NFE_VALIDAR As String
+Public CAMINHO_NFE_VALIDADO As String
+Public CAMINHO_NFE_RETORNO As String
+Public CAMINHO_NFE_ERROS As String
+Public CAMINHO_NFE_TEMP As String
+
+Public sCaminhoOrigemNF As String
+Public sCaminhoDestinoNF As String
+Public sArquivoOrigemNF As String
+Public sArquivoDestinoNF As String
+
+'''''Public Declare Function SHCreateThread Lib "shlwapi.dll" (ByVal pfnThreadProc As Long, pData As Any, ByVal dwFlags As Long, ByVal pfnCallback As Long) As Long
+
+Public Sub Carrega_View(sModo As String)
+On Error GoTo Erro
+
+Dim sSituacao As String
+Dim Contador As Integer
+
+Dim sqlSituacao As String
+Dim sSql As String
+
+Dim rsDados As New ADODB.Recordset
+Dim rsNFsInutilizadas As New ADODB.Recordset
+
+'   cmdCancelarNota.Enabled = False
+'   cmdTransmitir.Enabled = False
+   frmGerenciarNF.cmdImprimirDANFE.Enabled = False
+   
+   ' Validar Período
+   If Not FValidarPeriodo(frmGerenciarNF.mskDataInicial.text, frmGerenciarNF.mskDataFinal.text) Then Exit Sub
+   ' Retorna condição do SQL
+   sqlSituacao = FSituacao("C", frmGerenciarNF.cmbSituacao.ListIndex)
+   ' Carrega View
+   If sModo = "Carregar" Then frmGerenciarNF.lvwNFs.ListItems.Clear
+
+   ' Notas
+   Contador = 1
+
+   sSql = "       SELECT "
+   sSql = sSql & vbCrLf & "      N.id" & I_TabelasNF & ", "
+   sSql = sSql & vbCrLf & "      N.idCliente, "
+   sSql = sSql & vbCrLf & "      N.Numero, "
+   sSql = sSql & vbCrLf & "      N.DataEmissao, "
+   sSql = sSql & vbCrLf & "      C.Nome, "
+   If I_SGBD = "SQLSERVER" Then
+      sSql = sSql & vbCrLf & "      T.Total  AS Total, "
+   ElseIf I_SGBD = "ACCESS" Then
+      sSql = sSql & vbCrLf & "      (T.Total + T.TotalFrete) AS Total, "
+   End If
+   sSql = sSql & vbCrLf & "      N.Situacao "
+   sSql = sSql & vbCrLf & "FROM "
+   sSql = sSql & vbCrLf & "      " & I_TabelasNF & " N, Clientes C, Total" & I_TabelasNF & " T "
+   sSql = sSql & vbCrLf & "WHERE "
+   sSql = sSql & vbCrLf & "      N.idCliente = C.idCliente AND "
+   sSql = sSql & vbCrLf & "      N.id" & I_TabelasNF & " = T.id" & I_TabelasNF & " AND "
+   If I_SGBD = "SQLSERVER" Then
+      sSql = sSql & vbCrLf & "      N.DataEmissao >= '" & Format(frmGerenciarNF.mskDataInicial.text, "yyyy-mm-dd") & "' AND "
+      sSql = sSql & vbCrLf & "      N.DataEmissao <= '" & Format(frmGerenciarNF.mskDataFinal.text, "yyyy-mm-dd") & "' "
+   ElseIf I_SGBD = "ACCESS" Then
+      sSql = sSql & vbCrLf & "      N.DataEmissao >= cDate('" & Format(frmGerenciarNF.mskDataInicial.text, "dd/mm/yyyy") & "') AND "
+      sSql = sSql & vbCrLf & "      N.DataEmissao <= cDate('" & Format(frmGerenciarNF.mskDataFinal.text, "dd/mm/yyyy") & "') "
+   End If
+   sSql = sSql & vbCrLf & sqlSituacao & " Order By N.Numero"
+   
+   Set rsDados = cnSistema.Execute(sSql)
+   Do While Not rsDados.EOF
+      sSituacao = FSituacao("S", rsDados!Situacao)      ' Retorna Situação atual da nota
+      
+      ' Pesquisa se registro existe
+      Set ItemList = frmGerenciarNF.lvwNFs.FindItem(StrZero(rsDados!Numero, 8))
+      If ItemList Is Nothing Then
+         Set ItemList = frmGerenciarNF.lvwNFs.ListItems.Add(, "R" & CStr(Contador), StrZero(rsDados!Numero, 8))
+      End If
+      
+      ItemList.SubItems(1) = rsDados!DataEmissao
+      ItemList.SubItems(2) = Trim(rsDados!Nome)
+      ItemList.SubItems(3) = Format(rsDados!Total, "##,##0.00")
+      ItemList.SubItems(4) = sSituacao
+      
+      Contador = Contador + 1
+      rsDados.MoveNext
+   Loop
+   
+   ' Notas
+   If I_SGBD = "SQLSERVER" Then
+      Set rsNFsInutilizadas = cnSistema.Execute("SELECT * FROM " & I_TabelasNF & "Inutilizadas WHERE Data >= '" & Format(frmGerenciarNF.mskDataInicial.text, "yyyy-mm-dd") & "' AND Data <= '" & Format(frmGerenciarNF.mskDataFinal.text, "yyyy-mm-dd") & "' Order By Numero")
+   ElseIf I_SGBD = "ACCESS" Then
+      Set rsNFsInutilizadas = cnSistema.Execute("SELECT * FROM " & I_TabelasNF & "Inutilizadas WHERE Data >= cDate('" & Format(frmGerenciarNF.mskDataInicial.text, "dd/mm/yyyy") & "') AND Data <= cDate('" & Format(frmGerenciarNF.mskDataFinal.text, "dd/mm/yyyy") & "') Order By Numero")
+   End If
+
+   If Not rsNFsInutilizadas.EOF Then
+      Do While Not rsNFsInutilizadas.EOF
+
+'         Set ItemList = lvwNFs.ListItems.Add(, "I" & CStr(rsNFsInutilizadas!Numero), StrZero(rsNFsInutilizadas!Numero, 8))
+
+         Set ProcuraItem = frmGerenciarNF.lvwNFs.FindItem(StrZero(rsNFsInutilizadas!Numero, 8))
+         If ProcuraItem Is Nothing Then
+            Set ItemList = frmGerenciarNF.lvwNFs.ListItems.Add(, "I" & CStr(Contador), StrZero(rsNFsInutilizadas!Numero, 8))
+            ItemList.SubItems(1) = rsNFsInutilizadas!Data
+            ItemList.SubItems(2) = "Nota Inutilizada"
+            ItemList.SubItems(3) = Format(0, "##,##0.00")
+            ItemList.SubItems(4) = "Inutilizada"
+            If IsNull(rsNFsInutilizadas!Protocolo) Or rsNFsInutilizadas!Protocolo = "" Then
+               ItemList.SubItems(5) = "Aguarde..."
+            Else
+               ItemList.SubItems(5) = ""
+            End If
+         End If
+
+         Contador = Contador + 1
+         rsNFsInutilizadas.MoveNext
+      Loop
+   End If
+   
+   Exit Sub
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - Carrega_View ")
+End Sub
+
+''''''Sua rotina de multitarefa
+'''''Public Sub MensagemAlerta()
+'''''
+'''''  MsgBox "O sistema está ativo !", vbOKOnly, "Status do sistema..."
+'''''
+'''''End Sub
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub ConfigurarNFs()
+'On Error GoTo Erro
+Dim rsSistema As New ADODB.Recordset
+Dim rsEmpresa As New ADODB.Recordset
+Dim rsUFs As New ADODB.Recordset
+Dim rsMunicipios As New ADODB.Recordset
+Dim rsVerificar As New ADODB.Recordset
+
+   ' Modelo da NF
+   I_ModeloNF = LerArquivoINI("NFe", "Modelo", CaminhoINI & "\System.ini")
+   If I_ModeloNF = "55" Then
+      I_TabelasNF = "NFe"
+      I_PastaUNINFe = "NF-e\"
+   ElseIf I_ModeloNF = "65" Then
+      I_TabelasNF = "NFCe"
+      I_PastaUNINFe = "NFC-e\"
+   End If
+
+   ' Configurar Informações gerais da nota
+   I_EmpresaNF = LerArquivoINI("NFe", "Empresa", CaminhoINI & "\System.ini")
+   I_UnidadeNFe = LerArquivoINI("Arquivos", "UnidadeNFe", CaminhoINI & "\System.ini")
+   I_CaminhoXML_NFCe = LerArquivoINI("Arquivos", "CaminhoXMLNFCe", CaminhoINI & "\System.ini")
+   I_HorarioVerao = LerArquivoINI("NFe", "HorarioVerao", CaminhoINI & "\System.ini")
+
+   ' Caminhos de Notas
+   
+''      sDestinoNF = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Validar\" & rsNFs!cNF & "-nfe.XML"
+   
+   
+   ARQUIVO_NFE_NOTAS = I_UnidadeNFe & I_PastaUNINFe & "Notas\Notas.TXT"
+
+   CAMINHO_NFE_ENVIO = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\ENVIO\"
+   CAMINHO_NFE_VALIDAR = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\VALIDAR\"
+   CAMINHO_NFE_VALIDADO = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\VALIDAR\VALIDADO\"
+   CAMINHO_NFE_RETORNO = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\RETORNO\"
+   CAMINHO_NFE_ERROS = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\ERROS\"
+   CAMINHO_NFE_TEMP = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\TEMP\"
+
+   ' Determina variáveis publica da empresa
+   Set rsEmpresa = cnSistema.Execute("Select * From Empresa")
+   If Not rsEmpresa.EOF Then
+      Set rsUFs = cnSistema.Execute("Select * From UFs WHERE idUF=" & rsEmpresa!idUF)
+      Set rsMunicipios = cnSistema.Execute("Select * From Municipios WHERE idMunicipio=" & rsEmpresa!idMunicipio)
+      
+      I_idEmpresa = rsEmpresa!idEmpresa
+      
+      I_Empresa_CNPJ_CPF = RemoveCaracteres(rsEmpresa!CNPJ_CPF)
+      I_EmpresaCodigoUF = rsUFs!Codigo
+      I_EmpresaUF = rsUFs!Sigla
+      I_EmpresaCodigoMunicipio = RemoveCaracteres(rsMunicipios!Codigo)
+      I_EmpresaMunicipio = rsMunicipios!Nome
+      
+      I_AmbienteNF = LerArquivoINI("NFe", "Ambiente", CaminhoINI & "\System.ini")
+   End If
+   
+   Set rsEmpresa = Nothing
+   Set rsUFs = Nothing
+   Set rsMunicipios = Nothing
+End Sub
+
+Private Function FValidarPeriodo(DataInicial As String, DataFinal As String) As Boolean
+On Error GoTo Erro
+Dim strMensagem As String
+
+   FValidarPeriodo = True
+
+   If Not IsDate(frmGerenciarNF.mskDataInicial.text) Then strMensagem = "Data Inicial Inválida" & Chr(13)
+   If Not IsDate(frmGerenciarNF.mskDataFinal.text) Then strMensagem = "Data Final Inválida" & Chr(13)
+   If IsDate(frmGerenciarNF.mskDataInicial.text) And IsDate(frmGerenciarNF.mskDataFinal.text) Then
+      If (CDate(frmGerenciarNF.mskDataInicial.text) > CDate(frmGerenciarNF.mskDataFinal.text)) Then strMensagem = "Data Inicial maior que Data Final"
+   End If
+   If Not strMensagem = Empty Then
+      MsgBox "Verifique os Seguintes Campos:" & Chr(13) & strMensagem, vbExclamation + vbOKOnly, "Campos Obrigatórios"
+      FValidarPeriodo = False
+      Exit Function
+   End If
+
+   Exit Function
+   Resume
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & ".FValidarPeriodo")
+End Function
+
+Private Function FSituacao(Parametro As String, Conteudo As Long) As String
+On Error GoTo Erro
+
+   If Parametro = "C" Then       ' Condição
+'      If Conteudo = 0 Then FSituacao = "AND Situacao <> 2"
+      If Conteudo = 0 Then FSituacao = ""
+      If Conteudo = 1 Then FSituacao = " AND N.Situacao = 0"
+      If Conteudo = 2 Then FSituacao = " AND N.Situacao = 1"
+      If Conteudo = 3 Then FSituacao = " AND N.Situacao = 2"
+      If Conteudo = 4 Then FSituacao = " AND N.Situacao = 3"
+      If Conteudo = 5 Then FSituacao = " AND N.Situacao = 4"
+      If Conteudo = 6 Then FSituacao = " AND N.Situacao = 5"
+      If Conteudo = 7 Then FSituacao = " AND N.Situacao <> 2"
+   End If
+   
+   If Parametro = "S" Then       ' Condição
+      If Conteudo = 0 Then FSituacao = "Em Digitação"
+      If Conteudo = 1 Then FSituacao = "Processamento"
+      If Conteudo = 2 Then FSituacao = "Aprovada"
+      If Conteudo = 3 Then FSituacao = "Cancelada"
+      If Conteudo = 4 Then FSituacao = "Não Emitida"
+      If Conteudo = 5 Then FSituacao = "Denegada"
+      If Conteudo = 9 Then FSituacao = "Pendentes"
+   End If
+   
+   Exit Function
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & ".FSituacao")
+End Function
+

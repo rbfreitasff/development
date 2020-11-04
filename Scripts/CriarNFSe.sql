@@ -1,0 +1,27 @@
+DROP TABLE NFSe
+CREATE TABLE [dbo].[NFSe](
+   [idNFSe] [int] IDENTITY(1,1) NOT NULL,
+   [idCliente] [int] NULL,
+   [Numero] [int] NULL,
+   [CodigoVerificacao] [varchar] (50) NULL,
+   [DataEmissao] [smalldatetime] NOT NULL,
+   [BaseCalculo] [numeric](12, 2) NOT NULL,   
+   [Aliquota] [numeric](12, 2) NOT NULL,   
+   [ValorIss] [numeric](12, 2) NOT NULL,   
+   [ValorLiquidoNfse] [numeric](12, 2) NOT NULL,   
+   [ValorServicos] [numeric](12, 2) NOT NULL,   
+   [ValorDeducoes] [numeric](12, 2) NOT NULL,   
+   [ValorPis] [numeric](12, 2) NOT NULL,   
+   [ValorCofins] [numeric](12, 2) NOT NULL,   
+   [ValorInss] [numeric](12, 2) NOT NULL,   
+   [ValorIr] [numeric](12, 2) NOT NULL,   
+   [ValorCsll] [numeric](12, 2) NOT NULL,   
+   [OutrasRetencoes] [numeric](12, 2) NOT NULL,   
+   [DescontoIncondicionado] [numeric](12, 2) NOT NULL,   
+   [IssRetido] [numeric](12, 2) NOT NULL,   
+   [ItemListaServico] [varchar](10) NOT NULL,   
+   [CodigoCnae] [varchar](12) NOT NULL,   
+   [Discriminacao] [varchar](2000) NULL,
+   [Situacao] [int] NULL,
+   [ExigibilidadeISS] [int] NULL) ON [PRIMARY]   
+   

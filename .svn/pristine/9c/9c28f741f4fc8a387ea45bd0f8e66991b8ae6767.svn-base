@@ -1,0 +1,16 @@
+Módulo = 25, 25, 1210, 662, 
+frmVisualiza = 0, 0, 0, 0, C, 50, 50, 1235, 687, C
+frmBancoDados = 0, 0, 0, 0, C, 75, 75, 1260, 712, C
+SHA1Hash = 0, 0, 0, 0, C
+frmLerXML = 0, 0, 0, 0, C, 100, 100, 1285, 737, C
+CNFCE310 = 0, 0, 0, 0, C
+modContantes = 75, 75, 1260, 712, C
+CImportar = 0, 0, 0, 0, C
+frmInformacoesNF = 0, 0, 0, 0, C, 125, 125, 1310, 762, C
+modNFs = 50, 50, 1235, 687, 
+frmGerenciarNFs = 275, 275, 1460, 912, , 150, 150, 1335, 787, C
+PreencherRS = 250, 250, 1435, 887, 
+frmGerenciarNF = 0, 0, 1185, 637, , 25, 25, 1210, 662, C
+CNF400 = 100, 100, 1285, 737, Z
+frmEventos = 225, 225, 1410, 862, C, 200, 200, 1385, 837, C
+frmConsultaCadastro = 0, 0, 0, 0, C, 225, 225, 1410, 862, C

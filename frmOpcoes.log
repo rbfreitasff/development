@@ -1,0 +1,8 @@
+Line 43: Class TabDlg.SSTab of control SSTab1 was not a loaded control class.
+Line 180: Class MSMask.MaskEdBox of control mskDecimaisQuantidade was not a loaded control class.
+Line 192: Class MSMask.MaskEdBox of control mskDecimaisValor was not a loaded control class.
+Line 434: Class MSMask.MaskEdBox of control mskPercMaxDesconto was not a loaded control class.
+Line 548: Class MSMask.MaskEdBox of control mskHorarioReducao was not a loaded control class.
+Line 624: Class MSMask.MaskEdBox of control mskCEP was not a loaded control class.
+Line 679: Class MSComDlg.CommonDialog of control dlgCaminhoBanco was not a loaded control class.
+Line 686: Class MSComDlg.CommonDialog of control dlgCaminhoSintegra was not a loaded control class.

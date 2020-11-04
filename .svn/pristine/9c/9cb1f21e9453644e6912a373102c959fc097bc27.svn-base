@@ -1,0 +1,75 @@
+[Banco de Dados]
+Caminho=D:\Projetos\Comercial\Fontes\GerenciadorNFs
+Sintegra=D:\Projetos\Comercial\DadosModelo\CasaGrande
+Servidor SQL=.
+Catalog=Gestao
+SGBD=ACCESS
+xSGBD=SQLSERVER
+
+[Impressora Fiscal]
+Caminho=C:\sistemas\NFC-e
+Ativar=0
+Porta=1
+Modelo=0
+Horario=17:00:00
+SEPD=0
+Gaveta=0
+
+[SEPD]
+TipoImpressao=1
+
+[NFe]
+Empresa=CASAGRANDE
+Ambiente=1
+Regime=1
+HorarioVerao=0
+ImpressoraUSB=\\Computador\ImpressoraUSB
+Modelo=65
+
+[Preenchimento]
+Cidade=Luziania
+UF=GO
+CEP=72.800-000
+Prefixo=061
+DecimaisQuantidade=3
+DecimaisValor=2
+Mensagem=
+
+[Orcamentos]
+Imprimir=1
+Confirmacao=0
+ECF=1
+PercMaxDesconto=20,00
+Mensagem=Prazo de Entrega 7 dias
+PesquisaDescricao=1
+Formato=2
+Mensagem2=
+
+[Impressoras]
+Notas=LPT1
+Boletos1=\\Vendas_1\boleto_2
+Boletos2=\\Vendas_1\boleto_1
+Orcamentos=LPT1
+TipoImpressao=0
+
+[Uteis]
+ExibirAgenda=0
+
+[Notas Fiscais]
+ItensNota=16
+DadosAdicionais=
+InformacoesCorpo=PROCON 151;VENANCIO 2000 SCS Q08 BL-B60 SL 240;
+TipoEmissaoNFe=3
+idAmbienteNFe=1
+
+[EMail]
+Porta=25
+
+[ArquivoS]
+Caminho=C:\DOSIMP\IMPRIMIR.PRN
+Copias=1
+Tamanho=9
+Fonte2=Courier New
+Fonte=Letter Gothic Std
+UnidadeNFe=C:\
+CaminhoXMLNFCe=C:\NFC-e\

@@ -1,0 +1,3 @@
+<1><CPF>58664866104/<CPF><Nome>Robinson de Freitas Fernandes</Nome>
+<2><Codigo>1</Codigo><NCM>00000000</NCM><Descricao>Lancamento de Diaria</Descricao><Quantidade>1</Quantidade><ValorUnitario>45.00</ValorUnitario><ISS>5.00</ISS>
+<2><Codigo>2</Codigo><NCM>11111111</NCM><Descricao>Refrigerante</Descricao><Quantidade>1</Quantidade><ValorUnitario>5.00</ValorUnitario><ICMS>17.00</ICMS>

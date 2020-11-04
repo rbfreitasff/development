@@ -1,0 +1,359 @@
+VERSION 5.00
+Begin VB.Form Verificador 
+   Caption         =   "Form1"
+   ClientHeight    =   3030
+   ClientLeft      =   120
+   ClientTop       =   450
+   ClientWidth     =   4560
+   LinkTopic       =   "Form1"
+   ScaleHeight     =   3030
+   ScaleWidth      =   4560
+   StartUpPosition =   3  'Windows Default
+   Begin VB.Timer tmrAtualiza 
+      Interval        =   8000
+      Left            =   120
+      Top             =   120
+   End
+End
+Attribute VB_Name = "Verificador"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = False
+Private Sub tmrAtualiza_Timer()
+On Error GoTo Erro
+Dim sVerArquivo As String
+Dim oImportar As New CImportar
+Dim rsNF As New ADODB.Recordset
+
+Dim handle As Integer
+Dim Linha As String
+Dim strMensagem As String
+Dim nProtocolo As String
+Dim sSql As String
+
+' Carregar Classes
+Dim oPreencherRs As New PreencherRS
+Dim oNF400 As New CNF400
+
+
+'   StatusBar.Panels(1).Text = "VERIFICANDO ATUALIZAÇÕES..."
+
+''   Carrega_View ("Atualizar")
+   
+   'Inserir um verificador de atualização. Caso um processo como cancelamento ou autorização seja localizado. Atualizar o Carrega_View
+   
+   ' Verifica se existe Cupom a ser importado
+   sVerArquivo = Dir(I_UnidadeNFe & "NFC-e\Notas\CUPOM.TXT")
+   If sVerArquivo = "CUPOM.TXT" Then
+      Call oImportar.FImportarCupom
+      Kill I_UnidadeNFe & "NFC-e\Notas\CUPOM.TXT"
+   End If
+   
+   ' Verificação de transmição de Nota
+   Call Verificar_Transmitir
+   
+   'Executar verificação de impressão de Arquivo Texto
+   
+   'Verificar se algum arquivo de retorno foi criado
+   Call Verifica_Retornos
+
+   ' Atuazaliza base de dados
+   
+'''''   bRetorno = False  '' Verifica se houve algum para recarregar a view
+
+   ' 0. Em Digitação
+   ' 1. Processamento
+   ' 2. Aprovada
+   ' 3. Cancelada
+   ' 4. Não Emitida
+   ' 5. Denegada
+   ' 9. Pendentes
+
+   If (IsDate(mskDataInicial.Text) And IsDate(mskDataFinal.Text)) And (CDate(mskDataFinal.Text) >= CDate(mskDataInicial.Text)) Then
+      If I_SGBD = "SQLSERVER" Then
+         Set rsNF = cnSistema.Execute("SELECT * FROM " & I_TabelasNF & " WHERE DataEmissao >= '" & Format(mskDataInicial.Text, "yyyy-mm-dd") & " 00:00:00' AND DataEmissao <= '" & Format(mskDataFinal.Text, "yyyy-mm-dd") & " 23:59:59' AND Situacao IN (1,3) Order By Numero")
+      ElseIf I_SGBD = "ACCESS" Then
+         Set rsNF = cnSistema.Execute("SELECT * FROM " & I_TabelasNF & " WHERE DataEmissao >= cDate('" & Format(mskDataInicial.Text, "dd/mm/yyyy") & " 00:00:00') AND DataEmissao <= cDate('" & Format(mskDataFinal.Text, "dd/mm/yyyy") & " 23:59:59') AND Situacao IN (1,3) Order By Numero")
+      End If
+      
+      Do While Not rsNF.EOF
+         ' Carregar dados da NF
+         Call oPreencherRs.PreencherRsNFs(rsNF!Numero)
+      
+         ' Verificar se XML foi atualizado
+'         Call oNF400.ConverterTXT_XML(rsNFCe!idNFCe, rsNFCe!Numero, rsNFCe!DataEmissao, rsNFCe!ChaveNFCe)
+
+         ' Verificar se XML foi autorizado
+         Call oNF400.FVerificaAprovacaoXML(rsNFs!nnf, rsNFs!DataEmissao, rsNFs!cNF, rsNFs!Situacao)
+
+         ' Verifica se XML de Cancelamento não possui erro
+         Call oNF400.FVerificaErroCancelamento(rsNFs!cNF)
+
+         ' Atualiza Protocolo
+         If (IsNull(rsNF!Protocolo) Or Trim(rsNF!Protocolo) = "") Then
+            Call oNF400.FAtualizarProtocolo(rsNFs!nnf, rsNFs!DataEmissao, rsNFs!cNF)
+         End If
+
+         ' Verifica se cancelamento foi autorizado
+         Call oNF400.FVerificaAutorizacaoCancelamento(rsNFs!nnf, rsNFs!DataEmissao, rsNFs!cNF, rsNFs!Situacao)
+
+         rsNF.MoveNext
+      Loop
+   End If
+
+'   StatusBar.Panels(1).Text = ""
+   
+   Exit Sub
+Erro:
+   Call FRetornaMensagens(Err.Number & " - " & Err.Description & " - " & TypeName(Me))
+End Sub
+
+Private Sub Verificar_Transmitir()
+Dim sVerArquivo As String
+Dim oImportar As New CImportar
+Dim rsNF As New ADODB.Recordset
+
+Dim handle As Integer
+Dim Linha As String
+Dim strMensagem As String
+Dim nProtocolo As String
+Dim sSql As String
+
+' Carregar Classes
+Dim oPreencherRs As New PreencherRS
+Dim oNF400 As New CNF400
+
+   ' Verifica se existe NF Em Processamento
+   If I_SGBD = "SQLSERVER" Then
+      Set rsNF = cnSistema.Execute("SELECT TOP 1 * FROM " & I_TabelasNF & " WHERE DataEmissao >= '" & Format(mskDataInicial.Text, "yyyy-mm-dd") & " 00:00:00' AND DataEmissao <= '" & Format(mskDataFinal.Text, "yyyy-mm-dd") & " 23:59:59' AND Situacao = 1 Order By Numero")
+   ElseIf I_SGBD = "ACCESS" Then
+      Set rsNF = cnSistema.Execute("SELECT TOP 1 * FROM " & I_TabelasNF & " WHERE DataEmissao >= cDate('" & Format(mskDataInicial.Text, "dd/mm/yyyy") & " 00:00:00') AND DataEmissao <= cDate('" & Format(mskDataFinal.Text, "dd/mm/yyyy") & " 23:59:59') AND Situacao = 1 Order By Numero")
+   End If
+
+   If Not rsNF.EOF Then
+      ' Carregar dados da NF
+      Call oPreencherRs.PreencherRsNFs(rsNF!Numero)
+
+      ' Verificar se tentativas < 10 e retransmitir
+      If Val(rsNF!TentativaEmissao) < Val(LerArquivoINI("NFe", "TentativasEmissao", App.Path & "\System.ini")) Then
+         cnSistema.Execute "Update " & I_TabelasNF & " set " & _
+                  "TentativaEmissao = " & (rsNF!TentativaEmissao + 1) & " " & _
+                  "Where Numero = " & rsNF!Numero
+                  
+         FAtualizar (1)
+                  
+         frmGerenciarNF.lblProcessamento.Caption = " Tentativa de Emissão da NF " & rsNF!Numero & " Nº " & (rsNF!TentativaEmissao + 1)
+      Else
+         frmGerenciarNF.lblProcessamento.Caption = ""
+         
+         ' Verificar se tentativas = 10
+         '' Se Sim alterar Situação Não Emitida
+         Call FAtualizaNF(rsNF!Numero, 4) ' Não emitida
+         
+         ' Recarregar Situação das notas
+         Carrega_View ("Carregar")
+      End If
+      
+      ' Verifica se o XML foi validado para transmitir a nota
+      ''
+      ''' Verificar se a nota é uma NFC-e para Gerar o Qr-Code
+      ''
+      sVerArquivo = Dir(I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\Validar\Validado\" & rsNFs!cNF & "-nfe.XML")
+      If sVerArquivo = (rsNFs!cNF & "-nfe.XML") Then
+         Call FArquivosNF("TRANSMITIR")
+      End If
+      
+      '' Se Não aumentar 1 em tentativas e retransmitir
+      
+   Else
+      ' Verificar se existe nota Em digitação e se Transmitir Automaticamente está ativo
+      '' Se sim Executar a transmissão
+      If LerArquivoINI("NFe", "AutoTransmitir", App.Path & "\System.ini") = 1 Then
+         ' Verifica se existe NF Em Processamento
+         If I_SGBD = "SQLSERVER" Then
+            Set rsNF = cnSistema.Execute("SELECT TOP 1 * FROM " & I_TabelasNF & " WHERE DataEmissao >= '" & Format(mskDataInicial.Text, "yyyy-mm-dd") & " 00:00:00' AND DataEmissao <= '" & Format(mskDataFinal.Text, "yyyy-mm-dd") & " 23:59:59' AND Situacao = 0 Order By Numero")
+         ElseIf I_SGBD = "ACCESS" Then
+            Set rsNF = cnSistema.Execute("SELECT TOP 1 * FROM " & I_TabelasNF & " WHERE DataEmissao >= cDate('" & Format(mskDataInicial.Text, "dd/mm/yyyy") & " 00:00:00') AND DataEmissao <= cDate('" & Format(mskDataFinal.Text, "dd/mm/yyyy") & " 23:59:59') AND Situacao = 0 Order By Numero")
+         End If
+         
+         If Not rsNF.EOF Then
+            ' Desativa verificação até o fim da transmissão
+            tmrAtualiza.Enabled = False
+         
+            ' Carregar dados da NF
+            Call oPreencherRs.PreencherRsNFs(rsNF!Numero)
+         
+            ' Gerar o arquivo XML
+'            Open ARQUIVO_NFE_NOTAS For Output As #1
+            Call NotasNFs(rsNFs!nnf)
+'            Close #1
+         
+            ' Validar e Assinar o XML
+            Call FArquivosNF("VALIDAR")
+            
+            ' Define como Gerada
+            Call FAtualizaNF(rsNFs!nnf, 1) ' Processamento
+         
+            ' Recarregar Situação das notas
+            Carrega_View ("Carregar")
+            
+            ' Reativa verificação após o fim da transmissão
+            tmrAtualiza.Enabled = True
+         End If
+      End If
+   
+   End If
+   
+   
+   ' Verificar QR-CODE
+   
+   
+'''''   ' Transmitir automaticamente as notas do NFC-e
+'''''   If LerArquivoINI("NFe", "AutoTransmitir", App.Path & "\System.ini") = 1 Then
+''''''      Call TransmitirAutomatico
+'''''   End If
+'''''
+'''''   'Gerar o QrCode e Transmitir a NF caso ela tenho sido validada com sucesso
+'''''''   Call TransmitirNF
+
+End Sub
+
+Private Sub Verifica_Retornos()
+Dim Contador As Integer
+'''''Dim Contador2 As Integer
+Dim sStatus As String
+'''''Dim sMotivos As String
+Dim sProtocolo As String
+Dim sNumeroNota As String
+Dim handle As Integer
+Dim Linha As String
+Dim strMensagem As String
+Dim xMotivo As String
+Dim xChaveNF As String
+'''''Dim bRetorno As Boolean
+
+Dim IdMensagens As Long
+
+''   ARQUIVO_NFE_NOTAS = I_UnidadeNFe & I_PastaUNINFe & "Notas\Notas.TXT"
+''
+''   CAMINHO_NFE_ENVIO = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\ENVIO\"
+''   CAMINHO_NFE_VALIDAR = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\VALIDAR\"
+''   CAMINHO_NFE_VALIDADO = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\VALIDAR\VALIDADO\"
+''   CAMINHO_NFE_RETORNO = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\RETORNO\"
+''   CAMINHO_NFE_ERROS = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\ERROS\"
+''   CAMINHO_NFE_TEMP = I_UnidadeNFe & I_PastaUNINFe & I_EmpresaNF & "\TEMP\"
+
+''FRetornaMensagens(ByVal sMensagem As String, _
+''         Optional ByVal sChave As String, _
+''         Optional ByVal sCodigo As String, _
+''         Optional ByVal sArquivo As String)
+         
+   IdMensagens = 1 ' Inicia o contador de chave das mensagens
+
+   Dim Arquivos() As String
+   Dim lCtr As Long
+   Arquivos = ListarArquivos(CAMINHO_NFE_RETORNO)
+   If Arquivos(lCtr) <> "" Then
+      For lCtr = 0 To UBound(Arquivos)
+         '' Inutilizar
+         If UCase(Mid(Arquivos(lCtr), Len(Trim(Arquivos(lCtr))) - 7, 8)) = "-INU.XML" Then
+            Contador = 1
+
+            ' Verifica se Inutilização foi aceita
+            handle = FreeFile
+            Open CAMINHO_NFE_RETORNO & Arquivos(lCtr) For Input As #handle
+            'Open CAMINHO_NFE_RETORNO & Trim(rsNFCeInutilizadas!ChaveNFCe) & "-inu.XML" For Input As #handle
+
+            Line Input #handle, Linha
+
+          ' Número do Protocolo
+            sProtocolo = PesquisarTAG(Linha, "nProt")
+          ' Número da Nota
+            sNumeroNota = PesquisarTAG(Linha, "nNFIni")
+          ' Verifica o Status
+            sStatus = RemoveCaracteres(PesquisarTAG(Linha, "cStat"))
+          ' Verifica o Motivo
+            xMotivo = PesquisarTAG(Linha, "xMotivo")
+          ' Verifica a Chave
+            xChaveNF = PesquisarTAG(Linha, "chNFe")
+
+            If Trim(sStatus) <> "" Then
+               Call FRetornaMensagens(xMotivo & " " & xChaveNF, sStatus, Arquivos(lCtr))
+            End If
+
+            ' Atualiza Protocolo
+            If Trim(sProtocolo) <> "" Then
+               cnSistema.Execute "Update " & I_TabelasNF & "Inutilizadas set " & _
+                        "Protocolo = '" & sProtocolo & "' " & _
+                        "Where Numero = " & sNumeroNota
+
+               sStatus = ""
+               sProtocolo = ""
+               
+               FAtualizar (1)
+            End If
+
+            Close #handle
+
+            Call FArquivosNF("RETORNOS", Arquivos(lCtr))
+
+         ElseIf UCase(Mid(Arquivos(lCtr), Len(Trim(Arquivos(lCtr))) - 3, 4)) = ".XML" Then
+            Contador = 1
+
+            handle = FreeFile
+            Open CAMINHO_NFE_RETORNO & Arquivos(lCtr) For Input As #handle
+
+            Line Input #handle, Linha
+          ' Verifica o Status
+            sStatus = RemoveCaracteres(PesquisarTAG(Linha, "cStat"))
+          ' Verifica o Motivo
+            xMotivo = PesquisarTAG(Linha, "xMotivo")
+          ' Número do Protocolo
+            sProtocolo = RemoveCaracteres(PesquisarTAG(Linha, "nRec"))
+          ' Verifica a Chave
+            xChaveNF = PesquisarTAG(Linha, "chNFe")
+
+            If Trim(sStatus) <> "" Then
+               Call FRetornaMensagens(xMotivo & " " & xChaveNF, sStatus, Arquivos(lCtr))
+            End If
+            Close #handle
+
+            Call FArquivosNF("RETORNOS", Arquivos(lCtr))
+
+         '' Erros
+         ElseIf UCase(Mid(Arquivos(lCtr), Len(Trim(Arquivos(lCtr))) - 3, 4)) = ".ERR" Then
+
+            handle = FreeFile
+            Open CAMINHO_NFE_RETORNO & Arquivos(lCtr) For Input As #handle
+
+            Line Input #handle, Linha
+
+'''''            bRetorno = False
+            While Not EOF(handle)
+               Line Input #handle, Linha
+
+               strMensagem = strMensagem & Linha & Chr(13)
+            Wend
+
+            MsgBox strMensagem, vbExclamation + vbOKOnly, "Erro"
+            Close #handle
+
+            Call FArquivosNF("RETORNOS", Arquivos(lCtr))
+
+         '' Mover os TXTs para TEMP
+         ElseIf UCase(Mid(Arquivos(lCtr), Len(Trim(Arquivos(lCtr))) - 3, 4)) = ".TXT" Then
+            Call FArquivosNF("RETORNOS", Arquivos(lCtr))
+
+         End If
+      Next
+   End If
+End Sub
+
+Private Function FAtualizar(ByRef iAtualizar As Integer)
+
+   If Not GravaArquivoINI("Verificador", "Atualizar", iAtualizar, App.Path & "\System.ini") Then
+      MsgBox "Não foi possível gravar arquivo de configuração" & Chr(13) & "Entre em contato com o suporte", vbInformation + vbOKOnly, "Sistema"
+   End If
+
+End Function

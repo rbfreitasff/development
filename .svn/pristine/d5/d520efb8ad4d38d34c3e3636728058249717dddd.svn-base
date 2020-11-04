@@ -1,0 +1,525 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+  Persistable = 0  'NotPersistable
+  DataBindingBehavior = 0  'vbNone
+  DataSourceBehavior  = 0  'vbNone
+  MTSTransactionMode  = 0  'NotAnMTSObject
+END
+Attribute VB_Name = "CImportar"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = True
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = False
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Classe Importar cupons
+' Autor: Robinson
+' Data da Criação: 24/03/2018
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Public Sub FImportarCupom()
+Dim sCPF As String
+Dim sNome As String
+
+Dim sCodigo As String
+Dim sCodigoNCM As String
+Dim sDescricao As String
+Dim sQuantidade As String
+Dim sValorUnitario As String
+Dim sImposto As String
+Dim sTaxaImposto As String
+
+Dim sCodigoPG As String
+Dim sTotal As String
+
+Dim handle As Integer
+Dim Linha As String
+
+Dim iIdNFe As Integer
+
+   If Dir(I_UnidadeNFe & "NFC-e\Notas\CUPOM.TXT") <> "" Then
+      handle = FreeFile
+      Open I_UnidadeNFe & "NFC-e\Notas\CUPOM.TXT" For Input As #handle
+      
+      bRetorno = False
+      While Not EOF(handle)
+         Line Input #handle, Linha
+   
+         If Mid(Linha, 2, 1) = 1 Then     '' Clientes
+            sCPF = PesquisarTAG(Linha, "CPF")
+            sNome = PesquisarTAG(Linha, "Nome")
+            
+            Call InserirCliente(sCPF, sNome)
+            Call InserirCupom(sCPF)
+         End If
+         
+         If Mid(Linha, 2, 1) = 2 Then     '' Produtos
+            sCodigo = PesquisarTAG(Linha, "Codigo")
+            sCodigoNCM = PesquisarTAG(Linha, "NCM")
+            sDescricao = PesquisarTAG(Linha, "Descricao")
+            sQuantidade = PesquisarTAG(Linha, "Quantidade")
+            sValorUnitario = PesquisarTAG(Linha, "ValorUnitario")
+            sImposto = PesquisarTAG(Linha, "Imposto")                ' 1. ICMS ou 2. ISS
+            sTaxaImposto = PesquisarTAG(Linha, "TaxaImposto")
+            
+            Call InserirProdutos(sCodigo, sCodigoNCM, sDescricao, sQuantidade, sValorUnitario, sImposto, sTaxaImposto)
+            Call InserirCupomItens(sCodigo, sCodigoNCM, sDescricao, sQuantidade, sValorUnitario, sImposto, sTaxaImposto)
+         End If
+         
+         
+         If Mid(Linha, 2, 1) = 3 Then     '' Forma de Pagamento
+            Set rsDados = cnSistema.Execute("Select * From NFCe WHERE Numero=" & I_NFCeNumero)
+            iIdNFe = rsDados!idNFCe
+   
+            sCodigoPG = PesquisarTAG(Linha, "CodigoPG")
+            sTotal = PesquisarTAG(Linha, "Total")
+            
+            cnSistema.Execute "Insert Into NFCePagamentos (idNFCe,idFormaPagamento,Valor) " & _
+                              "Values (" & iIdNFe & "," & sCodigoPG & "," & sTotal & ")"
+         End If
+            
+   '      strMensagem = strMensagem & Linha & Chr(13)
+      Wend
+      
+      Close #handle
+   End If
+   
+End Sub
+
+Public Function InserirCupom(sCPF As String) As String
+Dim vGravacao As String
+Dim Verifica_CPF As String
+Dim rsNFCe As New ADODB.Recordset
+Dim rsClientes As New ADODB.Recordset
+
+   If sCPF <> Empty Then
+      vGravacao = ""
+            
+      ' Dados Cadastrais
+      Dim iNumero As Integer
+      Dim iCliente As Integer
+         
+      Set rsNFCe = cnSistema.Execute("Select TOP 1 * From NFCe ORDER BY idNFCe DESC")
+      If Not rsNFCe.BOF Or Not rsNFCe.EOF Then
+         iNumero = rsNFCe!Numero + 1
+      Else
+         iNumero = 1
+      End If
+       
+      Verifica_CPF = VerCNPJ_CPF(sCPF)
+      Set rsClientes = cnSistema.Execute("Select * From Clientes WHERE CNPJ_CPF = '" & Verifica_CPF & "'")
+      If Not rsClientes.BOF Or Not rsClientes.EOF Then
+         iCliente = rsClientes!idCliente
+      Else
+         iCliente = 1
+      End If
+       
+      vGravacao = ""
+      vGravacao = vGravacao & "Numero = " & iNumero & ", "
+      vGravacao = vGravacao & "Cupom = " & 0 & ", "
+      vGravacao = vGravacao & "idCliente = " & iCliente & ", "
+      vGravacao = vGravacao & "idNaturezaOperacao = " & 1 & ", "  ' Venda de Mercadorias e serviços
+      vGravacao = vGravacao & "idCFOP = " & 531 & ", "            ' 5.933: Prestação de serviço tributado pelo ISSQN (Nota Fiscal conjugada)
+      vGravacao = vGravacao & "DadosAdicionais = '', "
+      vGravacao = vGravacao & "DataEmissao = '" & Date & "', "
+      vGravacao = vGravacao & "DataCaixa = '" & Date & "', "
+      vGravacao = vGravacao & "DataVencimento = '" & Date & "', "
+      vGravacao = vGravacao & "Hora = '" & Time & "', "
+      vGravacao = vGravacao & "BaseCalculoICMS = " & 0 & ", "
+      vGravacao = vGravacao & "ValorICMS = " & 0 & ", "
+      vGravacao = vGravacao & "ValorFrete = " & 0 & ", "
+      vGravacao = vGravacao & "ValorTotalProdutos = " & 0 & ", "
+      vGravacao = vGravacao & "BaseICMSSubstituicao = " & 0 & ", "
+      vGravacao = vGravacao & "ValorICMSSubstituicao = " & 0 & ", "
+      vGravacao = vGravacao & "OutrasDespesas = " & 0 & ", "
+      vGravacao = vGravacao & "ValorTotalNota = " & 0 & ", "
+      vGravacao = vGravacao & "idTransportador = " & 0 & ", "
+      vGravacao = vGravacao & "FreteConta = " & 9 & ", "          ' Não se aplica
+      vGravacao = vGravacao & "PlacaVeiculo = '   -    ', "
+      vGravacao = vGravacao & "UFCaminhao = '', "
+      vGravacao = vGravacao & "VolumeQuantidade = '', "
+      vGravacao = vGravacao & "VolumeMarca = '', "
+      vGravacao = vGravacao & "VolumeEspecie = '', "
+      vGravacao = vGravacao & "VolumeNumero = '', "
+      vGravacao = vGravacao & "VolumePesoBruto = 0, "
+      vGravacao = vGravacao & "VolumePesoLiquido = 0, "
+      vGravacao = vGravacao & "InformacoesCorpo = '" & LerArquivoINI("Notas Fiscais", "InformacoesCorpo", CaminhoINI & "\System.ini") & "', "
+      vGravacao = vGravacao & "idFormaPagamento = " & 1 & ", "    ' Avista
+      vGravacao = vGravacao & "DescontoGeral = " & 0 & ", "
+      vGravacao = vGravacao & "Bonificacao = " & 0 & ", "
+      vGravacao = vGravacao & "Documento = '', "
+      vGravacao = vGravacao & "Observacao = '', "
+      vGravacao = vGravacao & "GeradaNFe = False, "
+      vGravacao = vGravacao & "Situacao = " & 0 & ", "
+      vGravacao = vGravacao & "TentativaEmissao = " & 1 & ", "
+      vGravacao = vGravacao & "NumeroNFCeComplementar = 0, "
+      vGravacao = vGravacao & "ChaveAcessoNFCeComplementar = '', "
+      vGravacao = vGravacao & "ChaveAcessoDevolucao = '' "
+
+      ' Inserir
+      cnSistema.Execute "Insert Into NFCe (Numero) Values (" & iNumero & ")"
+      cnSistema.Execute "Update NFCe SET " & vGravacao & " Where Numero = " & iNumero
+      
+      I_NFCeNumero = iNumero
+   End If
+
+End Function
+      
+Public Function InserirCupomItens(sCodigo As String, sCodigoNCM As String, ByRef sDescricao As String, ByRef sQuantidade As String, ByRef sValorUnitario As String, ByRef sImposto As String, ByRef sTaxaImposto As String) As String
+Dim iIdNFe As Integer
+Dim iIdProduto As Integer
+Dim dDataEmissao As Date
+Dim dQuantidade As Double
+Dim dDesconto As Double
+Dim dValorUnitario As Double
+Dim dICMS As Double
+Dim dISS As Double
+Dim dBaseReduzida As Double
+Dim sDescricaoComplementar As String
+Dim iIdUnidade As Integer
+Dim iIdSituacaoTributaria As Integer
+Dim sDiscriminacaoProduto As String
+Dim dIPI As Double
+Dim dBaseReduzidaIPI As Double
+Dim sClassificacaoFiscal As String
+Dim dValorFrete As Double
+Dim sCFOP As String
+
+Dim VerCodigo As String
+
+Dim rsProdutos As New ADODB.Recordset
+
+   Set rsDados = cnSistema.Execute("Select * From NFCe WHERE Numero=" & I_NFCeNumero)
+
+   iIdNFe = rsDados!idNFCe
+
+   VerCodigo = StrZero(Val(sCodigo), 4)
+   Set rsProdutos = cnSistema.Execute("Select * From Produtos Where Codigo = '" & VerCodigo & "'")
+   If Not rsProdutos.EOF Then
+      iIdProduto = rsProdutos!IDProduto
+   End If
+
+   dDataEmissao = Date
+   dQuantidade = sQuantidade
+   dDesconto = 0
+   dValorUnitario = sValorUnitario
+   dBaseReduzida = 0
+   sDescricaoComplementar = ""
+   iIdUnidade = 1
+   sDiscriminacaoProduto = ""
+   dIPI = 0
+   dBaseReduzidaIPI = 0
+   sClassificacaoFiscal = ""
+   dValorFrete = 0
+   If sImposto = "2" Then
+      sCFOP = "5.933"               ' Serviços
+'      iIdSituacaoTributaria = 20    ' Outros
+      iIdSituacaoTributaria = 12    ' Tributado sem permissão de crédito
+      dICMS = 0
+      dISS = sTaxaImposto
+   Else
+      If sTaxaImposto = "SU" Then
+         sCFOP = "5.405"               ' Vendas
+         iIdSituacaoTributaria = 19    ' Tributado sem permissão de crédito
+         dICMS = 0
+      ElseIf sTaxaImposto = "NA" Then
+         sCFOP = "5.102"               ' Vendas
+         iIdSituacaoTributaria = 12    ' Tributado sem permissão de crédito
+         dICMS = 0
+      ElseIf sTaxaImposto = "IS" Then
+         sCFOP = "5.102"               ' Vendas
+         iIdSituacaoTributaria = 12    ' Tributado sem permissão de crédito
+         dICMS = 0
+      Else
+         sCFOP = "5.102"               ' Vendas
+         iIdSituacaoTributaria = 12    ' Tributado sem permissão de crédito
+         dICMS = sTaxaImposto
+      End If
+      dISS = 0
+   End If
+
+   cnSistema.Execute "Insert Into NFCeItens (idNFCe,idProduto,Data,Quantidade,Desconto,ValorUnitario,ICMS,ISS,BaseReduzida,DescricaoComplementar,idUnidade,idSituacaoTributaria,DiscriminacaoProduto,IPI,BaseReduzidaIPI,ClassificacaoFiscal,ValorFrete,CFOP) " & _
+                     "Values (" & iIdNFe & "," & iIdProduto & ",'" & dDataEmissao & "','" & sQuantidade & "','" & 0 & "'," & sValorUnitario & ",'" & _
+                     dICMS & "','" & dISS & "','" & dBaseReduzida & "','" & SQLCheck(sDescricaoComplementar) & "'," & iIdUnidade & "," & iIdSituacaoTributaria & ",'" & _
+                     SQLCheck(sDiscriminacaoProduto) & "','" & dIPI & "','" & dBaseReduzidaIPI & "','" & SQLCheck(sClassificacaoFiscal) & "','" & dValorFrete & "','" & sCFOP & "')"
+
+   Set rsDados = Nothing
+   
+End Function
+
+Public Function InserirCliente(sCPF As String, sNome As String) As String
+Dim Verifica_CPF As String
+Dim rsInclusao As New ADODB.Recordset
+Dim rsTemp As New ADODB.Recordset
+Dim rsClientes As New ADODB.Recordset
+Dim dVinculo As String
+Dim vGravacao As String
+
+   Verifica_CPF = VerCNPJ_CPF(sCPF)
+   If Verifica_CPF <> "ERRO" Then
+      Set rsTemp = cnSistema.Execute("Select * From Clientes Where CNPJ_CPF = '" & Verifica_CPF & "'")
+      If rsTemp.EOF Then
+         'Inserir Cliente
+         vGravacao = ""
+            
+       ' Dados Cadastrais
+         Dim iCodigo As Integer
+         
+         Set rsClientes = cnSistema.Execute("Select TOP 1 * From Clientes ORDER BY idCliente DESC")
+         
+         If Not rsClientes.BOF Or Not rsClientes.EOF Then
+            iCodigo = rsClientes!idCliente + 1
+         Else
+            iCodigo = 1
+         End If
+       
+         vGravacao = vGravacao & "Codigo = " & iCodigo & ", "
+         vGravacao = vGravacao & "CNPJ_CPF = '" & SQLCheck(Verifica_CPF) & "', "
+         vGravacao = vGravacao & "IE_CI = '', "
+         vGravacao = vGravacao & "Nome = '" & SQLCheck(sNome) & "', "
+         vGravacao = vGravacao & "NomeFantasia = '', "
+         vGravacao = vGravacao & "Contato = '', "
+         vGravacao = vGravacao & "idLogradouro = 28, "
+         vGravacao = vGravacao & "TipoContribuinte = 2, "         ' Não se aplica
+         vGravacao = vGravacao & "Numero = 'SN', "
+         vGravacao = vGravacao & "Endereco = '', "
+         vGravacao = vGravacao & "Bairro = '', "
+         vGravacao = vGravacao & "idMunicipio = 740, "            ' Brasilia
+         vGravacao = vGravacao & "CodigoMunicipio = '5300108', "
+         vGravacao = vGravacao & "Cidade = 'Brasilia', "
+         vGravacao = vGravacao & "UF = 'DF', "
+          vGravacao = vGravacao & "CEP = '  .   -   ', "
+         vGravacao = vGravacao & "PrefixoFone1 = '061', "
+         vGravacao = vGravacao & "Telefone1 = '', "
+         vGravacao = vGravacao & "PrefixoFone2 = '061', "
+         vGravacao = vGravacao & "Telefone2 = '', "
+         vGravacao = vGravacao & "PrefixoFone3 = '061', "
+         vGravacao = vGravacao & "Telefone3 = '', "
+         vGravacao = vGravacao & "PrefixoFax = '061', "
+         vGravacao = vGravacao & "Fax = '', "
+         vGravacao = vGravacao & "PrefixoCelular = '061', "
+         vGravacao = vGravacao & "Celular = '', "
+         vGravacao = vGravacao & "EMail = '', "
+         vGravacao = vGravacao & "DataCadastro = '" & Date & "', "
+         vGravacao = vGravacao & "DataNascimento = Null, "
+         vGravacao = vGravacao & "Sexo = 'M', "
+         vGravacao = vGravacao & "Naturalidade = '', "
+         vGravacao = vGravacao & "EstadoCivil = '', "
+         vGravacao = vGravacao & "Situacao = '0', "               ' Ativo
+         vGravacao = vGravacao & "DataInativacao = Null, "
+         vGravacao = vGravacao & "idFormaPagamento = 2, "
+         vGravacao = vGravacao & "idRamoAtividade = 1, "
+         vGravacao = vGravacao & "MotivoInativacao = '', "
+
+       ' Dados Adicionais
+         vGravacao = vGravacao & "TituloEleitor = '', "
+         vGravacao = vGravacao & "CarteiraTrabalho = '', "
+         vGravacao = vGravacao & "CartaoAposentado = '', "
+         vGravacao = vGravacao & "CAValor = '0', "
+         vGravacao = vGravacao & "Pai = '', "
+         vGravacao = vGravacao & "Mae = '', "
+         vGravacao = vGravacao & "Conjuge = '', "
+         vGravacao = vGravacao & "ConjugeCPF = '', "
+         vGravacao = vGravacao & "ConjugeCI = '', "
+         vGravacao = vGravacao & "ConjugeNascimento = Null, "
+         vGravacao = vGravacao & "ConjugeNatural = '', "
+         vGravacao = vGravacao & "ConjugeRenda = '0', "
+         vGravacao = vGravacao & "LocalTrabalho = '', "
+         vGravacao = vGravacao & "TrbEndereco = '', "
+         vGravacao = vGravacao & "TrbCidade = '', "
+         vGravacao = vGravacao & "TrbUF = '', "
+         vGravacao = vGravacao & "TrbCEP = '  .   -   ', "
+         vGravacao = vGravacao & "Setor = '', "
+         vGravacao = vGravacao & "DataAdmissao = Null, "
+         vGravacao = vGravacao & "Cargo = '', "
+         vGravacao = vGravacao & "DescontoMaximo = '0', "
+
+       ' Dados Referências
+         vGravacao = vGravacao & "Comerciais = '', "
+         vGravacao = vGravacao & "Bancarias = '', "
+         vGravacao = vGravacao & "Pessoais = '', "
+         vGravacao = vGravacao & "Avalista = '', "
+
+       ' Anotacoes
+         vGravacao = vGravacao & "Observacoes = '', "
+         vGravacao = vGravacao & "Imoveis = '', "
+         vGravacao = vGravacao & "Veiculos = '', "
+
+       ' Vida Financeira
+         vGravacao = vGravacao & "Renda = '0', "
+         vGravacao = vGravacao & "ChequeEspecial = '0', "
+         vGravacao = vGravacao & "LimiteCompra = '0', "
+         vGravacao = vGravacao & "OutrasPrestacoes = '0', "
+         vGravacao = vGravacao & "OutraRenda = '', "
+         vGravacao = vGravacao & "OutraRendaValor = '0', "
+         vGravacao = vGravacao & "EnderecoCobranca = '', "
+         vGravacao = vGravacao & "BairroCobranca = '', "
+         vGravacao = vGravacao & "CidadeCobranca = '', "
+         vGravacao = vGravacao & "UFCobranca = '', "
+         vGravacao = vGravacao & "CEPCobranca = '  .   -   ', "
+         vGravacao = vGravacao & "VencimentoCobranca = '', "
+         vGravacao = vGravacao & "LocalCobranca = '', "
+         vGravacao = vGravacao & "GeradaNFe = False" & ", "
+         vGravacao = vGravacao & "ConsumidorFinal = 0, "
+         vGravacao = vGravacao & "Interestadual = 0, "
+         vGravacao = vGravacao & "ValorCobranca = '0' "
+
+         ' Inserir
+         cnSistema.Execute "Insert Into Clientes (CNPJ_CPF) Values ('" & SQLCheck(Verifica_CPF) & "')"
+         cnSistema.Execute "Update Clientes SET " & vGravacao & " Where CNPJ_CPF = '" & SQLCheck(Verifica_CPF) & "'"
+      End If
+       
+   Else
+'      If mskCNPJ_CPF.Enabled Then mskCNPJ_CPF.SetFocus
+   End If
+
+End Function
+
+Public Function VerCNPJ_CPF(sArg As String) As String
+Dim sCNPJ_CPF As String, _
+    sNumero  As String, _
+    iDigito As String, _
+    iTamanho As Integer, _
+    iTeste As Integer, _
+    iSoma As Double, _
+    iMultiplicador As Integer, _
+    Contador As Integer, _
+    i As Integer
+
+   For Contador = 1 To Len(sArg)
+       If IsNumeric(Mid(sArg, Contador, 1)) Then
+          sCNPJ_CPF = sCNPJ_CPF + Mid(sArg, Contador, 1)
+       End If
+   Next
+   
+   If Len(sCNPJ_CPF) <> 11 And Len(sCNPJ_CPF) <> 14 Then
+'      MsgBox "Tamanho do CNPJ/CPF está incorreto", vbInformation + vbOKOnly, "Informações"
+      VerCNPJ_CPF = "ERRO"
+      Exit Function
+   End If
+
+   sNumero = Mid(sCNPJ_CPF, 1, Len(sCNPJ_CPF) - 2) ' Definir o número
+   iTamanho = Len(sNumero) ' Definir o tamanho do número
+
+   If iTamanho > 9 Then ' Define o tamanho
+      iTeste = 10
+   Else
+      iTeste = 99
+   End If
+   For Contador = 1 To 2
+       iSoma = 0                             ' Inicializa variável para somar
+       iMultiplicador = 2                    ' Inicializa variável para multiplicação
+       For i = 1 To iTamanho                 ' Multiplicar os número do CNPJ de traz para frente
+           If iMultiplicador = iTeste Then   ' Se multiplicador for o mesmo que teste reinicializá-la
+              iMultiplicador = 2
+           End If
+           iSoma = iSoma + Val(Mid(sNumero, iTamanho - i + 1, 1)) * iMultiplicador ' Soma será igual a soma + posição do número do CPF de traz para frente * o multiplicador
+           iMultiplicador = iMultiplicador + 1 ' Acrescentar 1 em multiplicador
+       Next
+       
+       iDigito = 11 - (iSoma - (Int(iSoma / 11) * 11)) ' Digito Verificador
+       If iDigito > 9 Then
+          iDigito = 0
+       End If
+       
+       sNumero = sNumero & Trim(Str(iDigito)) ' Acrescentar o digito ao número
+       iTamanho = iTamanho + 1 ' Aumentar 1 em tamanho
+   Next
+   If sCNPJ_CPF <> sNumero Then
+'      MsgBox "CNPJ/CPF está incorreto", vbInformation + vbOKOnly, "Informações"
+      VerCNPJ_CPF = "ERRO"
+      Exit Function
+   End If
+   If Len(sCNPJ_CPF) = 11 Then VerCNPJ_CPF = Mid(sCNPJ_CPF, 1, 3) & "." & Mid(sCNPJ_CPF, 4, 3) & "." & Mid(sCNPJ_CPF, 7, 3) & "-" & Mid(sCNPJ_CPF, 10, 2)
+   If Len(sCNPJ_CPF) = 14 Then VerCNPJ_CPF = Mid(sCNPJ_CPF, 1, 2) & "." & Mid(sCNPJ_CPF, 3, 3) & "." & Mid(sCNPJ_CPF, 6, 3) & "/" & Mid(sCNPJ_CPF, 9, 4) & "-" & Mid(sCNPJ_CPF, 13, 2)
+End Function
+
+Public Function InserirProdutos(sCodigo As String, sCodigoNCM As String, sDescricao As String, sQuantidade As String, sValorUnitario As String, sImposto As String, sTaxaImposto As String) As String
+Dim Verifica_CPF As String
+Dim rsInclusao As New ADODB.Recordset
+Dim rsTemp As New ADODB.Recordset
+
+Dim SQLCampos As String
+Dim SQLVariaveis As String, SQLVariaveis2 As String
+
+Dim iClasse As Integer
+Dim iUnidade As Integer
+Dim iRegistradorFiscal As Integer
+Dim iSituacaoTributaria As Integer
+Dim iSituacao As Integer
+Dim iFabricante As Integer
+Dim iMarca As Integer
+Dim iGrupo As Integer
+Dim iSubGrupo As Integer
+
+Dim VerCodigo As String
+
+   VerCodigo = StrZero(Val(sCodigo), 4)
+   
+   Set rsTemp = cnSistema.Execute("Select * From Produtos Where Codigo = '" & VerCodigo & "'")
+   If rsTemp.EOF Then
+      SQLCampos = "(Codigo,CodigoNCM,CEST,Descricao,DiscriminacaoProduto,idClasse,idUnidade,idSituacaoTributaria,ValorCusto,Preco,ValorCompra,MargemLucro,PesoBruto,PesoLiquido,DescontoMaximo," & _
+                  "Comissao,idRegistradorFiscal,DescricaoReduzida,ICMS,Frete,IPI,IVA,Simples,EstoqueMinimo,SaldoInicial,Localizacao,Situacao," & _
+                  "Aplicacao,idFabricante,idMarca,BaseReduzidaICMSdUF,BaseReduzidaICMSfUF,CodigoMarca,Tipo,AnoInicial,AnoFinal,idGrupo,Cadastro,DataAtualizacao,idSubGrupo,GeradaNFe,ControlarEstoque,Foto,Genero,TipoItem,ICMSReaproveitamento)"
+   
+      iClasse = 1
+      If sTaxaImposto = "SU" Then
+         iSituacaoTributaria = 19
+      Else
+         iSituacaoTributaria = 12
+      End If
+      iSituacao = 0
+      iUnidade = 1
+      iRegistradorFiscal = 1
+      iFabricante = 1
+      iMarca = 1
+      iGrupo = 1
+      iSubGrupo = 1
+   
+      SQLVariaveis = "('" & SQLCheck(VerCodigo) & "'," & _
+                     "'" & SQLCheck(sCodigoNCM) & "','0'," & _
+                     "'" & SQLCheck(sDescricao) & "'," & _
+                     "''," & _
+                     iClasse & "," & _
+                     iUnidade & "," & _
+                     iSituacaoTributaria & "," & _
+                     0 & "," & _
+                     Substitui(sValorUnitario, ",", ".") & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     iRegistradorFiscal & "," & _
+                     "''," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     0 & "," & _
+                     "''," & iSituacao & ","
+   
+      SQLVariaveis2 = "''," & _
+                      iFabricante & "," & _
+                      iMarca & ",'" & _
+                      0 & "','" & _
+                      0 & "'," & _
+                      "''," & _
+                      "''," & _
+                      "'0'," & _
+                      "'0'," & _
+                      iGrupo & "," & _
+                      "'" & Date & "'," & _
+                      "Null" & "," & _
+                      iSubGrupo & ",False," & 0 & ",'','00','00'," & 0 & ")"
+   
+      cnSistema.Execute "Insert Into Produtos " & SQLCampos & " Values " & SQLVariaveis & SQLVariaveis2
+   End If
+
+End Function
+
+
+
